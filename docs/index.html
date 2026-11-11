@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Início | Animações Sol-Terra-Lua</title>
+<style>
+  :root { --cor:#1e3a5f; --fundo:#f6f8fb; }
+  body { margin:0; font-family:system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background:var(--fundo); color:#1c1c1c; line-height:1.55; }
+  header { background:var(--cor); color:white; padding:26px 20px 14px; text-align:center; }
+  header h1 { margin:0 0 4px; font-size:1.6rem; }
+  header p { margin:0 0 12px; opacity:.85; }
+  nav { display:flex; gap:8px; justify-content:center; flex-wrap:wrap; }
+  nav a { color:white; text-decoration:none; padding:7px 14px; border-radius:8px;
+           border:1px solid rgba(255,255,255,.35); font-size:.95rem; }
+  nav a.atual { background:white; color:var(--cor); font-weight:600; }
+  main { max-width:1250px; margin:0 auto; padding:18px; }
+  .painel { background:white; border-radius:12px; padding:14px; box-shadow:0 1px 6px rgba(0,0,0,.08); }
+  .nota { font-size:.95rem; color:#33475b; margin:10px 4px 2px; }
+  .cartoes { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:16px; }
+  .cartao { background:white; border-radius:12px; padding:18px; box-shadow:0 1px 6px rgba(0,0,0,.08);
+             text-decoration:none; color:inherit; border-top:5px solid var(--cor); }
+  .cartao:hover { box-shadow:0 3px 12px rgba(0,0,0,.15); }
+  .cartao h2 { margin:0 0 6px; font-size:1.15rem; color:var(--cor); }
+  footer { text-align:center; font-size:.85rem; color:#667; padding:18px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Sol, Terra e Lua em movimento</h1>
+  <p>Modelos 3D interativos desenvolvidos a partir de um TCC em Licenciatura em Física</p>
+  <nav><a href="index.html" class=atual>Início</a><a href="modelo1.html">Modelo 1 · Translação</a><a href="modelo2_anual.html">Modelo 2 · Ano e analema</a><a href="modelo2_diario.html">Modelo 2 · Um dia</a></nav>
+</header>
+<main>
+
+<div class="cartoes">
+  <a class="cartao" href="modelo1.html"><h2>Modelo 1 · Translação</h2>
+  Sol, Terra e Lua vistos de fora: fases da Lua, órbita lunar inclinada em 5,145° e alertas de possíveis eclipses.</a>
+  <a class="cartao" href="modelo2_anual.html"><h2>Modelo 2 · Ano e analema</h2>
+  O céu visto da Terra ao longo de um ano, com a declinação do Sol (senoide) e o analema.</a>
+  <a class="cartao" href="modelo2_diario.html"><h2>Modelo 2 · Um dia</h2>
+  Movimento diário aparente do Sol e da Lua na esfera celeste, de hora em hora.</a>
+</div>
+<p class="nota">Os modelos foram criados originalmente no GeoGebra (2021) e recriados em Python com NumPy e Plotly.
+São modelos didáticos: as escalas de distância e tamanho não são reais.</p>
+</main>
+<footer>Gerado com Python · Plotly · Hospedado no GitHub Pages</footer>
+</body>
+</html>
