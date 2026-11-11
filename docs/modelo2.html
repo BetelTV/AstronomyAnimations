@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Modelo 2 · O céu do observador</title>
+<link rel="stylesheet" href="estilo.css">
+<script type="importmap">{ "imports": { "three": "./vendor/three.module.min.js", "three/addons/": "./vendor/addons/" } }</script>
+<style>
+  .principal { display:grid; grid-template-columns: minmax(0, 1fr) 440px; }
+  .principal .cena { height: calc(100vh - 205px); min-height: 520px; }
+  .lado { height: calc(100vh - 205px); min-height: 520px; overflow-y: auto; background:#fff; border-left:1px solid var(--borda); padding: 10px 12px 18px; }
+  .lado h3 { font-size: .92rem; margin: 14px 0 4px; color: var(--cor); display:flex; justify-content:space-between; align-items:center; gap:8px; }
+  .lado h3:first-child { margin-top: 2px; }
+  .lado canvas { width: 100%; display:block; border:1px solid #e3e8ef; border-radius:8px; cursor: crosshair; }
+  table.dados { width:100%; border-collapse: collapse; font-size: .83rem; font-variant-numeric: tabular-nums; }
+  table.dados td { padding: 3px 6px; border-bottom: 1px solid #eef1f5; }
+  table.dados td:first-child { color:#52657a; width: 52%; }
+  table.dados tr.sec td { background:#f3f6fa; font-weight:700; color: var(--cor); padding-top:6px; }
+  .mini { font-size:.78rem; font-weight:400; color:#667; }
+  .lado select { font-size:.8rem; }
+  @media (max-width: 1000px) {
+    .principal { grid-template-columns: 1fr; }
+    .principal .cena { height: 70vh; }
+    .lado { height:auto; border-left:none; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Sol, Terra e Lua em movimento</h1>
+  <nav><a href="index.html">Início</a><a href="modelo1.html">Modelo 1 · Visto de fora</a><a class="atual" href="modelo2.html">Modelo 2 · Céu do observador</a></nav>
+</header>
+
+<div class="barra">
+  <div class="grupo">
+    <label>Local <select id="local"></select></label>
+    <label>Latitude <input id="lat" type="range" min="-90" max="90" step="0.1"><input id="latN" type="number" min="-90" max="90" step="0.1"></label>
+    <label>Longitude <input id="lon" type="number" min="-180" max="180" step="0.01"></label>
+    <label>Fuso (UTC) <input id="fuso" type="number" min="-12" max="14" step="0.5" style="width:56px"></label>
+  </div>
+  <div class="grupo">
+    <label>Data <input id="data" type="date"></label>
+    <button id="hoje">Agora</button>
+  </div>
+  <div class="grupo">
+    <button id="play" class="prim">▶ Reproduzir</button>
+    <label><select id="modo">
+      <option value="corrido">Tempo corrido</option>
+      <option value="diario">Mesmo horário, dia após dia</option></select></label>
+    <label><select id="vel"></select></label>
+  </div>
+  <div class="grupo">
+    <span>Câmera:</span><button id="camFora">De fora</button><button id="camOlho">Olhos do observador</button>
+  </div>
+</div>
+<div class="barra" style="padding-top:6px; padding-bottom:6px;">
+  <label><input type="checkbox" id="vEcl" checked> Eclíptica</label>
+  <label><input type="checkbox" id="vEq" checked> Equador celeste</label>
+  <label><input type="checkbox" id="vLuaOrb" checked> Órbita da Lua</label>
+  <label><input type="checkbox" id="vDiaSol" checked> Caminho do Sol no dia</label>
+  <label><input type="checkbox" id="vAnalema" checked> Analema no céu</label>
+  <label><input type="checkbox" id="vEstrelas" checked> Estrelas</label>
+  <label><input type="checkbox" id="vSombra" checked> Sombra do observador</label>
+</div>
+<div class="tempo">
+  <span class="rotulo" id="horaRot">12h00</span>
+  <input id="hora" type="range" min="0" max="1439" step="1" value="720" title="Hora local (passo de 1 minuto)">
+  <span class="rotulo" id="diaRot" style="min-width:120px; text-align:right">1 jan</span>
+  <input id="dia" type="range" min="1" max="365" step="1" value="1" title="Dia do ano (passo de 1 dia)" style="flex:1">
+</div>
+
+<div class="principal">
+  <div class="cena" id="cena">
+    <div class="legenda">Arraste para girar · roda do mouse para aproximar. O observador está no centro da esfera celeste e olha para o Sol.</div>
+  </div>
+  <aside class="lado">
+    <h3>Dados do instante</h3>
+    <table class="dados" id="tabela"></table>
+    <h3>Altura do Sol e da Lua ao longo do dia <span class="mini">clique para mudar a hora</span></h3>
+    <canvas id="cvDia" height="210"></canvas>
+    <h3>Declinação do Sol ao longo do ano <span class="mini">clique para mudar o dia</span></h3>
+    <canvas id="cvAno" height="190"></canvas>
+    <h3>Analema
+      <select id="tipoAnalema">
+        <option value="ceu">no céu (azimute × altura)</option>
+        <option value="eot">equação do tempo × declinação</option>
+      </select></h3>
+    <canvas id="cvAnalema" height="470"></canvas>
+    <p class="mini" id="notaAnalema"></p>
+  </aside>
+</div>
+
+<p class="nota"><b>Como ler o modelo:</b> o observador está no centro da esfera celeste, sobre o plano do horizonte. A rotação da Terra faz o céu
+inteiro girar em torno do eixo que passa pelos polos celestes; a altura do polo celeste acima do horizonte é igual à latitude. Mude a
+latitude e veja os caminhos do Sol se inclinarem: no equador eles são verticais, nos polos ficam paralelos ao horizonte. No modo
+<b>“mesmo horário, dia após dia”</b> o relógio fica parado e o Sol desenha o <b>analema</b>: a variação norte–sul vem da declinação
+(inclinação do eixo, 23,44°) e o desvio leste–oeste vem da equação do tempo (inclinação do eixo + excentricidade da órbita).
+As posições usam fórmulas astronômicas de baixa precisão (erro típico abaixo de 0,1° para o Sol e de cerca de 0,3° para a Lua).</p>
+
+<script type="module">
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { CSS2DRenderer, CSS2DObject } from "three/addons/renderers/CSS2DRenderer.js";
+import * as A from "./astro.js";
+
+const CFG = {"ano": 2026, "local_inicial": "São Paulo", "locais": [{"nome": "São Paulo (SP)", "lat": -23.55, "lon": -46.63, "fuso": -3}, {"nome": "Campinas (SP)", "lat": -22.91, "lon": -47.06, "fuso": -3}, {"nome": "Cuiabá (MT)", "lat": -15.6, "lon": -56.1, "fuso": -4}, {"nome": "Latitude do TCC (−11,31°)", "lat": -11.31, "lon": -56.1, "fuso": -4}, {"nome": "Macapá (Linha do Equador)", "lat": 0.03, "lon": -51.07, "fuso": -3}, {"nome": "Ubatuba (Trópico de Capricórnio)", "lat": -23.44, "lon": -45.07, "fuso": -3}, {"nome": "Porto Alegre (RS)", "lat": -30.03, "lon": -51.23, "fuso": -3}, {"nome": "Lisboa (Portugal)", "lat": 38.72, "lon": -9.14, "fuso": 0}, {"nome": "Tromsø (Círculo Polar Ártico)", "lat": 69.65, "lon": 18.96, "fuso": 1}, {"nome": "Polo Sul", "lat": -90.0, "lon": 0.0, "fuso": 0}]};
+const LOCAIS = CFG.locais || [{ nome: "São Paulo (SP)", lat: -23.55, lon: -46.63, fuso: -3 }];
+const MESES = ["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
+const MESES_L = ["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
+const CORES_MES = ["#e53935","#d81b60","#8e24aa","#5e35b1","#3949ab","#1e88e5","#00897b","#43a047","#c0ca33","#fdd835","#fb8c00","#6d4c41"];
+const $ = (id) => document.getElementById(id);
+const R = 10;
+const pontoCardeal = (az) => ["N","NNE","NE","ENE","L","ESE","SE","SSE","S","SSO","SO","OSO","O","ONO","NO","NNO"][Math.round(A.norm360(az) / 22.5) % 16];
+const sinal = (x, c = 1) => (x >= 0 ? "+" : "−") + Math.abs(x).toFixed(c);
+const raTxt = (ra) => { const h = A.norm360(ra) / 15; return `${Math.floor(h)}h${String(Math.floor((h % 1) * 60)).padStart(2, "0")}m`; };
+
+// ------------------------------------------------------------------ estado
+const E = { lat: -23.55, lon: -46.63, fuso: -3, ano: 2026, mes: 11, dia: 11, min: 720, tocando: false, modo: "corrido" };
+const bissexto = (a) => (a % 4 === 0 && a % 100 !== 0) || a % 400 === 0;
+const diaDoAno = () => Math.round((Date.UTC(E.ano, E.mes - 1, E.dia) - Date.UTC(E.ano, 0, 1)) / 864e5) + 1;
+function definirDiaDoAno(n) { const d = new Date(Date.UTC(E.ano, 0, n)); E.ano = d.getUTCFullYear(); E.mes = d.getUTCMonth() + 1; E.dia = d.getUTCDate(); }
+function somarDias(k) { const d = new Date(Date.UTC(E.ano, E.mes - 1, E.dia + k)); E.ano = d.getUTCFullYear(); E.mes = d.getUTCMonth() + 1; E.dia = d.getUTCDate(); }
+const jdMeiaNoite = () => A.jdLocal(E.ano, E.mes, E.dia, 0, E.fuso);
+const jdAgora = () => jdMeiaNoite() + E.min / 1440;
+
+// ------------------------------------------------------------------ cena 3D
+const cena = $("cena");
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+cena.prepend(renderer.domElement);
+const rot = new CSS2DRenderer();
+Object.assign(rot.domElement.style, { position: "absolute", top: "0", pointerEvents: "none" });
+cena.appendChild(rot.domElement);
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(50, 1, 0.01, 500);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+
+// horizonte local -> three: x = Leste, y = Zênite, z = Sul (Norte = −z)
+const H3 = (h, r = R) => new THREE.Vector3(h.leste * r, h.cima * r, -h.norte * r);
+const altAz = (alt, az, r = R) => new THREE.Vector3(r * Math.cos(alt*A.RAD) * Math.sin(az*A.RAD), r * Math.sin(alt*A.RAD), -r * Math.cos(alt*A.RAD) * Math.cos(az*A.RAD));
+function rotulo(txt, cor = "#fff", tam = 13) { const d = document.createElement("div"); d.className = "rot3d"; d.textContent = txt; d.style.color = cor; d.style.fontSize = tam + "px"; return new CSS2DObject(d); }
+function linha(n, cor, larg = 1, opac = 1, tracejada = false) {
+  const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(new Float32Array(n * 3), 3));
+  const m = tracejada ? new THREE.LineDashedMaterial({ color: cor, dashSize: 0.3, gapSize: 0.22, transparent: true, opacity: opac })
+                      : new THREE.LineBasicMaterial({ color: cor, transparent: opac < 1, opacity: opac });
+  const l = new THREE.Line(g, m); l.frustumCulled = false; scene.add(l); return l; }
+function definir(l, pts) { const a = l.geometry.attributes.position; for (let i = 0; i < a.count; i++) { const p = pts[Math.min(i, pts.length - 1)]; a.setXYZ(i, p.x, p.y, p.z); } a.needsUpdate = true; if (l.material.isLineDashedMaterial) l.computeLineDistances(); }
+
+// chão (plano do horizonte) e cúpula
+const chao = new THREE.Mesh(new THREE.CircleGeometry(R, 128), new THREE.MeshBasicMaterial({ color: 0x4f7a3a, transparent: true, opacity: 0.55, side: THREE.DoubleSide, depthWrite: false }));
+chao.rotation.x = -Math.PI / 2; scene.add(chao);
+const borda = linha(181, 0x111111, 1, 1); definir(borda, Array.from({ length: 181 }, (_, i) => altAz(0, i * 2)));
+const cupula = new THREE.Mesh(new THREE.SphereGeometry(R, 64, 32), new THREE.MeshBasicMaterial({ color: 0xbfe3ff, transparent: true, opacity: 0.06, side: THREE.BackSide, depthWrite: false }));
+scene.add(cupula);
+// grade de altura/azimute bem suave
+for (const alt of [30, 60]) definir(linha(181, 0xffffff, 1, 0.18), Array.from({ length: 181 }, (_, i) => altAz(alt, i * 2)));
+for (let az = 0; az < 180; az += 45) definir(linha(181, 0xffffff, 1, az % 90 ? 0.12 : 0.3), Array.from({ length: 181 }, (_, i) => altAz(i < 91 ? i : 180 - i, i < 91 ? az : az + 180)));
+for (const [txt, az] of [["N", 0], ["L", 90], ["S", 180], ["O", 270]]) { const r = rotulo(txt, "#fff", 18); r.position.copy(altAz(0, az, R * 1.07)); scene.add(r); }
+const rZen = rotulo("Zênite", "#ddd", 12); rZen.position.set(0, R * 1.04, 0); scene.add(rZen);
+
+// observador (bonequinho), virado para o Norte quando az = 0
+const boneco = new THREE.Group(); scene.add(boneco);
+{ const pele = new THREE.MeshStandardMaterial({ color: 0xf1c27d, roughness: .8 }), roupa = new THREE.MeshStandardMaterial({ color: 0x1e3a5f, roughness: .8 }),
+        calca = new THREE.MeshStandardMaterial({ color: 0x37474f, roughness: .8 }), bone = new THREE.MeshStandardMaterial({ color: 0xd84315 });
+  const cil = (r1, r2, h, m) => new THREE.Mesh(new THREE.CylinderGeometry(r1, r2, h, 16), m);
+  const pernaE = cil(0.07, 0.06, 0.8, calca); pernaE.position.set(-0.1, 0.4, 0); const pernaD = pernaE.clone(); pernaD.position.x = 0.1;
+  const tronco = cil(0.2, 0.17, 0.62, roupa); tronco.position.y = 1.11;
+  const cabeca = new THREE.Mesh(new THREE.SphereGeometry(0.15, 24, 16), pele); cabeca.position.y = 1.58;
+  const aba = cil(0.17, 0.17, 0.03, bone); aba.position.set(0, 1.68, -0.08); aba.scale.z = 1.3;
+  const topo = new THREE.Mesh(new THREE.SphereGeometry(0.15, 20, 10, 0, Math.PI*2, 0, Math.PI/2), bone); topo.position.y = 1.65;
+  const bracoE = cil(0.05, 0.045, 0.6, roupa); bracoE.position.set(-0.25, 1.08, 0); bracoE.rotation.z = 0.15;
+  const bracoD = cil(0.05, 0.045, 0.6, roupa); bracoD.position.set(0.25, 1.15, -0.15); bracoD.rotation.x = 1.0; // apontando
+  boneco.add(pernaE, pernaD, tronco, cabeca, aba, topo, bracoE, bracoD);
+  boneco.scale.setScalar(0.9); }
+const sombra = new THREE.Mesh(new THREE.PlaneGeometry(1, 0.22), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.45, depthWrite: false }));
+sombra.rotation.x = -Math.PI / 2; sombra.position.y = 0.01; const sombraG = new THREE.Group(); sombraG.add(sombra); scene.add(sombraG);
+
+// luzes: Sol (direcional) + ambiente
+const luzSol = new THREE.DirectionalLight(0xffffff, 2.6); scene.add(luzSol);
+const amb = new THREE.AmbientLight(0xffffff, 0.35); scene.add(amb);
+
+// Sol e Lua
+function brilho() { const cv = document.createElement("canvas"); cv.width = cv.height = 128; const x = cv.getContext("2d");
+  const g = x.createRadialGradient(64,64,0,64,64,64); g.addColorStop(0,"rgba(255,245,200,1)"); g.addColorStop(.3,"rgba(255,200,80,.5)"); g.addColorStop(1,"rgba(255,160,0,0)");
+  x.fillStyle = g; x.fillRect(0,0,128,128); return new THREE.CanvasTexture(cv); }
+const sol = new THREE.Mesh(new THREE.SphereGeometry(0.5, 32, 16), new THREE.MeshBasicMaterial({ color: 0xffd040 }));
+const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: brilho(), blending: THREE.AdditiveBlending, depthWrite: false })); halo.scale.set(3.2, 3.2, 1); sol.add(halo);
+const rSol = rotulo("Sol", "#ffd27a"); rSol.position.set(0, -0.9, 0); sol.add(rSol); scene.add(sol);
+const lua = new THREE.Mesh(new THREE.SphereGeometry(0.42, 32, 16), new THREE.MeshStandardMaterial({ color: 0xdddddd, roughness: 1 }));
+const rLua = rotulo("Lua", "#eee"); rLua.position.set(0, -0.8, 0); lua.add(rLua); scene.add(lua);
+const raioSol = linha(2, 0xffb300, 1, 0.6, true), raioLua = linha(2, 0xcccccc, 1, 0.5, true);
+
+// círculos celestes
+const N_ECL = 181;
+const lEcl = linha(N_ECL, 0xff9933), lEq = linha(181, 0x2e9e4f), lLuaOrb = linha(N_ECL, 0xe0457b), lDiaSol = linha(181, 0xffd54f, 1, 0.9, true);
+const lAnalema = linha(367, 0xff7043, 1, 0.95), lEixo = linha(2, 0x2e9e4f, 1, 0.8, true);
+const rPS = rotulo("Polo Sul celeste", "#7fe0a0", 12), rPN = rotulo("Polo Norte celeste", "#7fe0a0", 12); scene.add(rPS, rPN);
+const rEcl = rotulo("Eclíptica", "#ffb366", 12), rEq = rotulo("Equador celeste", "#7fe0a0", 12); scene.add(rEcl, rEq);
+const pontosAnalema = new THREE.Points(new THREE.BufferGeometry(), new THREE.PointsMaterial({ size: 5, sizeAttenuation: false, vertexColors: true }));
+pontosAnalema.geometry.setAttribute("position", new THREE.Float32BufferAttribute(new Float32Array(12 * 3), 3));
+pontosAnalema.geometry.setAttribute("color", new THREE.Float32BufferAttribute(CORES_MES.flatMap(c => new THREE.Color(c).toArray()), 3));
+pontosAnalema.frustumCulled = false; scene.add(pontosAnalema);
+
+// estrelas fixas na esfera celeste (coordenadas equatoriais sorteadas, semente fixa)
+let semente = 7; const rnd = () => (semente = (semente * 16807) % 2147483647) / 2147483647;
+const ESTRELAS = Array.from({ length: 700 }, () => ({ ra: rnd() * 360, dec: Math.asin(2 * rnd() - 1) * A.DEG }));
+const geoEst = new THREE.BufferGeometry(); geoEst.setAttribute("position", new THREE.Float32BufferAttribute(new Float32Array(ESTRELAS.length * 3), 3));
+const estrelas = new THREE.Points(geoEst, new THREE.PointsMaterial({ color: 0xffffff, size: 2, sizeAttenuation: false, transparent: true, opacity: 1 }));
+estrelas.frustumCulled = false; scene.add(estrelas);
+
+// cor do céu conforme a altura do Sol
+const C_NOITE = new THREE.Color(0x060b1c), C_CREP = new THREE.Color(0x3a3f74), C_AURORA = new THREE.Color(0xf2a36b), C_DIA = new THREE.Color(0x87c6ef);
+function corCeu(alt) {
+  if (alt <= -18) return C_NOITE.clone();
+  if (alt <= -6) return C_NOITE.clone().lerp(C_CREP, (alt + 18) / 12);
+  if (alt <= 0) return C_CREP.clone().lerp(C_AURORA, (alt + 6) / 6);
+  if (alt <= 8) return C_AURORA.clone().lerp(C_DIA, alt / 8);
+  return C_DIA.clone();
+}
+
+// ------------------------------------------------------------------ cálculos em cache
+let cacheAno = null, cacheDia = null, P = null;
+function calcularAno() { // analema e declinação: um ponto por dia, no mesmo horário local
+  const n = bissexto(E.ano) ? 366 : 365, dias = [];
+  for (let i = 0; i < n; i++) {
+    const jd = A.jdLocal(E.ano, 1, 1 + i, E.min, E.fuso);
+    const p = A.instante(jd, E.lat, E.lon);
+    const s12 = A.sol(A.dJ2000(A.jdLocal(E.ano, 1, 1 + i, 12 * 60, E.fuso)));
+    dias.push({ dec: s12.dec, eot: s12.eot, alt: p.solH.alt, az: p.solH.az, v: H3(p.solH) });
+  }
+  cacheAno = { n, dias, chave: chaveAno() };
+}
+const chaveAno = () => [E.ano, E.lat, E.lon, E.fuso, E.min].join("|");
+const chaveDia = () => [E.ano, E.mes, E.dia, E.lat, E.lon, E.fuso].join("|");
+function calcularDia() {
+  const jd0 = jdMeiaNoite();
+  cacheDia = { chave: chaveDia(), sol: A.nascerPor(jd0, E.lat, E.lon, "sol", -0.833), lua: A.nascerPor(jd0, E.lat, E.lon, "lua", 0.125) };
+}
+
+// ------------------------------------------------------------------ atualização da cena
+let sujo = true;
+function atualizarCena() {
+  const jd = jdAgora();
+  P = A.instante(jd, E.lat, E.lon);
+  if (!cacheAno || cacheAno.chave !== chaveAno()) { if (E.modo === "diario" || !E.tocando || !cacheAno) calcularAno(); }
+  if (!cacheDia || cacheDia.chave !== chaveDia()) calcularDia();
+  const { s, l, lst } = P;
+  const hz = (ra, dec) => H3(A.horizonte(ra, dec, E.lat, lst));
+
+  const vSol = H3(P.solH), vLua = H3(P.luaH);
+  sol.position.copy(vSol); lua.position.copy(vLua);
+  definir(raioSol, [new THREE.Vector3(0, 1.4, 0), vSol]); definir(raioLua, [new THREE.Vector3(0, 1.4, 0), vLua]);
+  luzSol.position.copy(vSol.clone().normalize().multiplyScalar(50)); luzSol.intensity = 2.6;
+  amb.intensity = P.solH.alt > 0 ? 0.3 : 0.15;
+  // eclíptica, órbita da Lua, equador, caminho do Sol no dia
+  const ecl = [], orb = [], inc = 5.145;
+  for (let i = 0; i < N_ECL; i++) {
+    const lo = i * 2;
+    const e = A.eclParaEq(lo, 0, s.eps); ecl.push(hz(e.ra, e.dec));
+    const u = lo, loL = l.no + Math.atan2(Math.cos(inc*A.RAD) * Math.sin(u*A.RAD), Math.cos(u*A.RAD)) * A.DEG, laL = Math.asin(Math.sin(inc*A.RAD) * Math.sin(u*A.RAD)) * A.DEG;
+    const o = A.eclParaEq(loL, laL, s.eps); orb.push(hz(o.ra, o.dec));
+  }
+  definir(lEcl, ecl); definir(lLuaOrb, orb);
+  definir(lEq, Array.from({ length: 181 }, (_, i) => hz(i * 2, 0)));
+  definir(lDiaSol, Array.from({ length: 181 }, (_, i) => hz(i * 2, s.dec)));
+  const pS = hz(0, -90), pN = hz(0, 90);
+  definir(lEixo, [pS, pN]); rPS.position.copy(pS.clone().multiplyScalar(1.04)); rPN.position.copy(pN.clone().multiplyScalar(1.04));
+  rEcl.position.copy(ecl[Math.round(A.norm360(s.lon + 60) / 2) % N_ECL]); rEq.position.copy(hz(lst - 60, 0));
+  // analema no céu (mesmo horário local ao longo do ano)
+  const pts = cacheAno.dias.map(d => d.v); pts.push(pts[0]); definir(lAnalema, pts);
+  const pa = pontosAnalema.geometry.attributes.position;
+  for (let m = 0; m < 12; m++) { const i = Math.round((Date.UTC(E.ano, m, 1) - Date.UTC(E.ano, 0, 1)) / 864e5); pa.setXYZ(m, ...cacheAno.dias[i].v.toArray()); }
+  pa.needsUpdate = true;
+  // estrelas
+  const pe = geoEst.attributes.position;
+  ESTRELAS.forEach((st, i) => { const v = hz(st.ra, st.dec); pe.setXYZ(i, v.x * 1.002, v.y * 1.002, v.z * 1.002); });
+  pe.needsUpdate = true;
+  estrelas.material.opacity = Math.max(0, Math.min(1, (-P.solH.alt - 2) / 10));
+  // céu, observador e sombra
+  scene.background = corCeu(P.solH.alt);
+  chao.material.color.set(P.solH.alt > 0 ? 0x5b8a40 : 0x2c4122);
+  const alvoAz = P.solH.alt > -6 ? P.solH.az : (P.luaH.alt > 0 ? P.luaH.az : P.solH.az);
+  boneco.rotation.y = -alvoAz * A.RAD;
+  const temSombra = P.solH.alt > 0.5 && $("vSombra").checked;
+  sombraG.visible = temSombra;
+  if (temSombra) { const comp = Math.min(R * 0.95, 1.55 / Math.tan(P.solH.alt * A.RAD)); sombra.scale.x = comp; sombra.position.x = comp / 2; sombraG.rotation.y = -(P.solH.az + 90) * A.RAD; }
+  aplicarVisibilidade();
+  sujo = true;
+}
+function aplicarVisibilidade() {
+  lEcl.visible = rEcl.visible = $("vEcl").checked;
+  lEq.visible = rEq.visible = $("vEq").checked;
+  lLuaOrb.visible = $("vLuaOrb").checked;
+  lDiaSol.visible = $("vDiaSol").checked;
+  lAnalema.visible = pontosAnalema.visible = $("vAnalema").checked;
+  estrelas.visible = $("vEstrelas").checked;
+}
+
+// ------------------------------------------------------------------ tabela
+function atualizarTabela() {
+  const { s, l, solH, luaH, fase, luaEq } = P, cd = cacheDia;
+  const durSol = cd.sol.sempreAcima ? "24h (Sol da meia-noite)" : cd.sol.sempreAbaixo ? "0h (noite polar)" :
+    (cd.sol.nasc !== null && cd.sol.por !== null) ? A.hhmm(A.norm360((cd.sol.por - cd.sol.nasc) / 4) * 4).replace("h", "h ") : "—";
+  const sombraTxt = solH.alt > 0.5 ? `${(1 / Math.tan(solH.alt * A.RAD)).toFixed(2)} m para cada 1 m de altura` : "sem sombra (Sol abaixo do horizonte)";
+  const hemis = E.lat >= 0 ? "norte" : "sul";
+  const est = (E.lat >= 0 ? ["primavera","verão","outono","inverno"] : ["outono","inverno","primavera","verão"])[Math.floor(A.norm360(s.lon) / 90)];
+  const zen = Math.abs(s.dec - E.lat) < 0.6 ? " · Sol passa pelo zênite hoje!" : "";
+  const linhas = [
+    ["sec", "Local e tempo"],
+    ["Latitude / longitude", `${sinal(E.lat, 2)}° / ${sinal(E.lon, 2)}°`],
+    ["Data e hora local", `${E.dia} ${MESES[E.mes - 1]} ${E.ano}, ${A.hhmm(E.min)} (UTC${E.fuso >= 0 ? "+" : "−"}${Math.abs(E.fuso)})`],
+    ["Estação (hemisfério " + hemis + ")", est],
+    ["Tempo sideral local", raTxt(P.lst)],
+    ["sec", "Sol"],
+    ["Altura · azimute", `${sinal(solH.alt)}° · ${solH.az.toFixed(1)}° (${pontoCardeal(solH.az)})`],
+    ["Declinação · asc. reta", `${sinal(s.dec, 2)}° · ${raTxt(s.ra)}`],
+    ["Nascer · pôr", `${A.hhmm(cd.sol.nasc)} · ${A.hhmm(cd.sol.por)}`],
+    ["Duração do dia claro", durSol],
+    ["Passagem meridiana", `${A.hhmm(cd.sol.culmMin)} · altura ${sinal(cd.sol.culmAlt)}°${zen}`],
+    ["Equação do tempo", `${sinal(s.eot)} min`],
+    ["Sombra de uma vara", sombraTxt],
+    ["Distância Terra–Sol", `${(s.R * 149.6).toFixed(2)} milhões de km`],
+    ["sec", "Lua"],
+    ["Altura · azimute", `${sinal(luaH.alt)}° · ${luaH.az.toFixed(1)}° (${pontoCardeal(luaH.az)})`],
+    ["Declinação", `${sinal(luaEq.dec, 2)}°`],
+    ["Fase · iluminação", `${fase.nome} · ${Math.round(fase.ilum * 100)}%`],
+    ["Nascer · pôr", `${A.hhmm(cacheDia.lua.nasc)} · ${A.hhmm(cacheDia.lua.por)}`],
+    ["Latitude eclíptica", `${sinal(l.lat, 2)}° ${Math.abs(l.lat) < 1.4 && (fase.dl < 13 || fase.dl > 347 || Math.abs(fase.dl - 180) < 13) ? "⚠ época de eclipse" : ""}`],
+    ["Distância Terra–Lua", `${Math.round(l.dist).toLocaleString("pt-BR")} km`],
+  ];
+  $("tabela").innerHTML = linhas.map(([a, b]) => a === "sec" ? `<tr class="sec"><td colspan="2">${b}</td></tr>` : `<tr><td>${a}</td><td>${b}</td></tr>`).join("");
+}
+
+// ------------------------------------------------------------------ gráficos (canvas)
+function prepararCanvas(cv) { const dpr = Math.min(devicePixelRatio, 2), w = cv.clientWidth, h = +cv.getAttribute("height");
+  if (cv.width !== Math.round(w * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); cv.style.height = h + "px"; }
+  const x = cv.getContext("2d"); x.setTransform(dpr, 0, 0, dpr, 0, 0); x.clearRect(0, 0, w, h); return { x, w, h }; }
+function eixos(x, w, h, m, xr, yr, xt, yt, xl, yl, titX, titY) {
+  const X = (v) => m.l + (v - xr[0]) / (xr[1] - xr[0]) * (w - m.l - m.r), Y = (v) => h - m.b - (v - yr[0]) / (yr[1] - yr[0]) * (h - m.t - m.b);
+  x.font = "11px system-ui"; x.fillStyle = "#556"; x.strokeStyle = "#e7ebf0"; x.lineWidth = 1;
+  xt.forEach((v, i) => { x.beginPath(); x.moveTo(X(v), m.t); x.lineTo(X(v), h - m.b); x.stroke(); x.textAlign = "center"; x.fillText(xl[i], X(v), h - m.b + 13); });
+  yt.forEach((v, i) => { x.beginPath(); x.moveTo(m.l, Y(v)); x.lineTo(w - m.r, Y(v)); x.stroke(); x.textAlign = "right"; x.fillText(yl[i], m.l - 4, Y(v) + 4); });
+  x.strokeStyle = "#9aa7b5"; x.strokeRect(m.l, m.t, w - m.l - m.r, h - m.t - m.b);
+  if (titX) { x.textAlign = "center"; x.fillText(titX, (m.l + w - m.r) / 2, h - 3); }
+  if (titY) { x.save(); x.translate(11, (m.t + h - m.b) / 2); x.rotate(-Math.PI / 2); x.textAlign = "center"; x.fillText(titY, 0, 0); x.restore(); }
+  return { X, Y };
+}
+function curva(x, pts, X, Y, cor, larg = 2, tracejado = null) {
+  x.strokeStyle = cor; x.lineWidth = larg; x.setLineDash(tracejado || []); x.beginPath();
+  pts.forEach(([a, b], i) => i ? x.lineTo(X(a), Y(b)) : x.moveTo(X(a), Y(b))); x.stroke(); x.setLineDash([]); }
+function ponto(x, px, py, cor, r = 5) { x.fillStyle = cor; x.strokeStyle = "#fff"; x.lineWidth = 1.5; x.beginPath(); x.arc(px, py, r, 0, Math.PI * 2); x.fill(); x.stroke(); }
+
+const M_DIA = { l: 38, r: 10, t: 10, b: 30 };
+function graficoDia() {
+  const { x, w, h } = prepararCanvas($("cvDia"));
+  const { X, Y } = eixos(x, w, h, M_DIA, [0, 1440], [-90, 90], [0,180,360,540,720,900,1080,1260,1440], [-90,-60,-30,0,30,60,90],
+    ["0h","3h","6h","9h","12h","15h","18h","21h","24h"], ["−90°","−60°","−30°","0°","30°","60°","90°"], "hora local", "altura (°)");
+  // faixas de noite / crepúsculo
+  const alts = cacheDia.sol.alts;
+  for (let i = 1; i < alts.length; i++) { const a = alts[i][1]; if (a < 0) { x.fillStyle = a < -18 ? "rgba(20,30,70,.16)" : "rgba(60,70,130,.09)"; x.fillRect(X(alts[i-1][0]), M_DIA.t, X(alts[i][0]) - X(alts[i-1][0]) + 0.5, h - M_DIA.t - M_DIA.b); } }
+  x.strokeStyle = "#333"; x.lineWidth = 1.2; x.beginPath(); x.moveTo(X(0), Y(0)); x.lineTo(X(1440), Y(0)); x.stroke();
+  curva(x, cacheDia.lua.alts, X, Y, "#8a8a8a", 2, [5, 4]);
+  curva(x, alts, X, Y, "#ff9100", 2.5);
+  for (const [m, txt] of [[cacheDia.sol.nasc, "nascer"], [cacheDia.sol.por, "pôr"]]) if (m !== null) { x.fillStyle = "#e65100"; x.textAlign = "center"; x.font = "10px system-ui"; x.fillText(`${txt} ${A.hhmm(m)}`, X(m), Y(0) - 6); }
+  x.strokeStyle = "rgba(216,67,21,.7)"; x.lineWidth = 1.5; x.beginPath(); x.moveTo(X(E.min), M_DIA.t); x.lineTo(X(E.min), h - M_DIA.b); x.stroke();
+  ponto(x, X(E.min), Y(P.luaH.alt), "#9e9e9e", 4); ponto(x, X(E.min), Y(P.solH.alt), "#ffb300", 5.5);
+  x.font = "11px system-ui"; x.textAlign = "left"; x.fillStyle = "#ff9100"; x.fillText("— Sol", w - 92, 22); x.fillStyle = "#777"; x.fillText("- - Lua", w - 50, 22);
+}
+
+const M_ANO = { l: 38, r: 10, t: 10, b: 30 };
+function graficoAno() {
+  const { x, w, h } = prepararCanvas($("cvAno")); const n = cacheAno.n;
+  const inicios = Array.from({ length: 12 }, (_, m) => Math.round((Date.UTC(E.ano, m, 1) - Date.UTC(E.ano, 0, 1)) / 864e5));
+  const lim = Math.max(30, Math.min(90, Math.ceil((Math.abs(E.lat) + 5) / 10) * 10));
+  const yt = lim <= 30 ? [-30,-20,-10,0,10,20,30] : [-lim, -lim/2, 0, lim/2, lim].map(Math.round);
+  const { X, Y } = eixos(x, w, h, M_ANO, [0, n - 1], [-lim, lim], inicios, yt, MESES.map(m => m[0].toUpperCase() + m.slice(1, 3)), yt.map(v => v + "°"), null, "declinação");
+  for (const v of [23.44, -23.44]) curva(x, [[0, v], [n - 1, v]], X, Y, "#bbb", 1, [3, 3]);
+  curva(x, [[0, E.lat], [n - 1, E.lat]], X, Y, "#1e88e5", 1.5, [6, 4]);
+  x.fillStyle = "#1e88e5"; x.font = "10px system-ui"; x.textAlign = "left"; x.fillText(`latitude do observador (${E.lat.toFixed(1)}°)`, M_ANO.l + 4, Y(E.lat) - 4);
+  curva(x, cacheAno.dias.map((d, i) => [i, d.dec]), X, Y, "#ff9100", 2.5);
+  const i = diaDoAno() - 1; ponto(x, X(i), Y(cacheAno.dias[i].dec), "#d84315", 5.5);
+}
+
+function graficoAnalema() {
+  const { x, w, h } = prepararCanvas($("cvAnalema")); const dias = cacheAno.dias, tipo = $("tipoAnalema").value;
+  const m = { l: 42, r: 12, t: 12, b: 34 };
+  let pts, titX, titY, fmtX;
+  if (tipo === "eot") { pts = dias.map(d => [d.eot * 0.25, d.dec]); titX = "equação do tempo (minutos; 1 min = 0,25°)"; titY = "declinação do Sol (°)"; fmtX = (v) => Math.round(v * 4) + " min"; }
+  else { const az0 = dias.reduce((a, d) => a + Math.sin(d.az * A.RAD), 0), az1 = dias.reduce((a, d) => a + Math.cos(d.az * A.RAD), 0); const c = Math.atan2(az0, az1) * A.DEG;
+         // deslocamento horizontal real no céu = diferença de azimute × cos(altura)
+         pts = dias.map(d => [A.norm180(d.az - c) * Math.cos(d.alt * A.RAD), d.alt]);
+         titX = `graus para a esquerda/direita de quem olha para ${pontoCardeal(c)} (az. ${A.norm360(c).toFixed(0)}°)`; titY = "altura do Sol (°)"; fmtX = (v) => (v > 0 ? "+" : "") + v + "°"; }
+  // mesma escala nos dois eixos (forma real do analema), centrada
+  const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]);
+  const cx = (Math.min(...xs) + Math.max(...xs)) / 2, cy = (Math.min(...ys) + Math.max(...ys)) / 2;
+  const span = Math.max((Math.max(...ys) - Math.min(...ys)) * 1.12, (Math.max(...xs) - Math.min(...xs)) * 1.12 * (h - m.t - m.b) / (w - m.l - m.r), 10);
+  const yr = [cy - span / 2, cy + span / 2], xspan = span * (w - m.l - m.r) / (h - m.t - m.b), xr = [cx - xspan / 2, cx + xspan / 2];
+  const passo = span > 40 ? 10 : 5;
+  const yt = []; for (let v = Math.ceil(yr[0] / passo) * passo; v <= yr[1]; v += passo) yt.push(v);
+  const xt = []; for (let v = Math.ceil(xr[0] / passo) * passo; v <= xr[1]; v += passo) xt.push(v);
+  const { X, Y } = eixos(x, w, h, m, xr, yr, xt, yt, xt.map(fmtX), yt.map(v => v + "°"), titX, titY);
+  if (tipo === "ceu" && yr[0] < 0) { x.fillStyle = "rgba(79,122,58,.18)"; x.fillRect(m.l, Y(0), w - m.l - m.r, h - m.b - Y(0)); x.fillStyle = "#4f7a3a"; x.textAlign = "left"; x.fillText("abaixo do horizonte", m.l + 4, Math.min(h - m.b - 4, Y(0) + 13)); }
+  for (let i = 1; i < pts.length; i++) { const mes = new Date(Date.UTC(E.ano, 0, i + 1)).getUTCMonth();
+    x.strokeStyle = CORES_MES[mes]; x.lineWidth = 3; x.beginPath(); x.moveTo(X(pts[i-1][0]), Y(pts[i-1][1])); x.lineTo(X(pts[i][0]), Y(pts[i][1])); x.stroke(); }
+  x.font = "11px system-ui";
+  for (let mes = 0; mes < 12; mes++) { const i = Math.round((Date.UTC(E.ano, mes, 1) - Date.UTC(E.ano, 0, 1)) / 864e5); const [a, b] = pts[i];
+    ponto(x, X(a), Y(b), CORES_MES[mes], 3.5); x.fillStyle = "#333"; x.textAlign = a > cx ? "left" : "right"; x.fillText("1 " + MESES[mes], X(a) + (a > cx ? 7 : -7), Y(b) + 4); }
+  const i = diaDoAno() - 1; ponto(x, X(pts[i][0]), Y(pts[i][1]), "#ffc400", 7);
+  $("notaAnalema").textContent = tipo === "ceu"
+    ? `Posição do Sol todos os dias às ${A.hhmm(E.min)} (hora local) em ${E.lat.toFixed(1)}° de latitude. Mude a hora ou a latitude e veja o “8” se inclinar.`
+    : "O mesmo analema sem depender do lugar: o eixo vertical é a declinação e o horizontal o adiantamento/atraso do Sol em relação ao relógio. Mesma escala nos dois eixos.";
+}
+
+// ------------------------------------------------------------------ interface
+const VEL = { corrido: [["1", "1 min/s"], ["5", "5 min/s"], ["15", "15 min/s"], ["30", "30 min/s"], ["60", "1 h/s"], ["180", "3 h/s"]],
+              diario: [["1", "1 dia/s"], ["3", "3 dias/s"], ["7", "1 semana/s"], ["15", "15 dias/s"], ["30", "1 mês/s"]] };
+function preencherVel() { $("vel").innerHTML = VEL[E.modo].map(([v, t]) => `<option value="${v}">${t}</option>`).join(""); $("vel").value = E.modo === "corrido" ? "30" : "7"; }
+$("local").innerHTML = LOCAIS.map((l, i) => `<option value="${i}">${l.nome}</option>`).join("") + `<option value="-1">Personalizado</option>`;
+function usarLocal(i) { const l = LOCAIS[i]; Object.assign(E, { lat: l.lat, lon: l.lon, fuso: l.fuso }); sincronizarControles(); atualizarTudo(); }
+function sincronizarControles() {
+  $("lat").value = E.lat; $("latN").value = E.lat; $("lon").value = E.lon; $("fuso").value = E.fuso;
+  $("data").value = `${E.ano}-${String(E.mes).padStart(2, "0")}-${String(E.dia).padStart(2, "0")}`;
+  $("dia").max = bissexto(E.ano) ? 366 : 365; $("dia").value = diaDoAno(); $("hora").value = Math.floor(E.min);
+  $("horaRot").textContent = A.hhmm(E.min) + " (hora local)"; $("diaRot").textContent = `${E.dia} ${MESES[E.mes - 1]} ${E.ano}`;
+}
+function personalizado() { $("local").value = "-1"; }
+$("local").onchange = (e) => { if (+e.target.value >= 0) usarLocal(+e.target.value); };
+$("lat").oninput = (e) => { E.lat = +e.target.value; $("latN").value = E.lat; personalizado(); atualizarTudo(); };
+$("latN").onchange = (e) => { E.lat = Math.max(-90, Math.min(90, +e.target.value)); $("lat").value = E.lat; personalizado(); atualizarTudo(); };
+$("lon").onchange = (e) => { E.lon = +e.target.value; personalizado(); atualizarTudo(); };
+$("fuso").onchange = (e) => { E.fuso = +e.target.value; personalizado(); atualizarTudo(); };
+$("data").onchange = (e) => { const [a, m, d] = e.target.value.split("-").map(Number); if (a) { Object.assign(E, { ano: a, mes: m, dia: d }); atualizarTudo(); } };
+$("dia").oninput = (e) => { definirDiaDoAno(+e.target.value); atualizarTudo(); };
+$("hora").oninput = (e) => { E.min = +e.target.value; atualizarTudo(); };
+$("hoje").onclick = () => { const agora = new Date(Date.now() + E.fuso * 3600e3);
+  Object.assign(E, { ano: agora.getUTCFullYear(), mes: agora.getUTCMonth() + 1, dia: agora.getUTCDate(), min: agora.getUTCHours() * 60 + agora.getUTCMinutes() }); atualizarTudo(); };
+$("play").onclick = () => { E.tocando = !E.tocando; $("play").textContent = E.tocando ? "⏸ Pausar" : "▶ Reproduzir"; if (!E.tocando) atualizarTudo(); };
+$("modo").onchange = (e) => { E.modo = e.target.value; preencherVel(); };
+$("tipoAnalema").onchange = () => graficoAnalema();
+for (const id of ["vEcl", "vEq", "vLuaOrb", "vDiaSol", "vAnalema", "vEstrelas", "vSombra"]) $(id).onchange = () => { atualizarCena(); };
+$("cvDia").onclick = (ev) => { const r = ev.target.getBoundingClientRect(); const v = (ev.clientX - r.left - M_DIA.l) / (r.width - M_DIA.l - M_DIA.r) * 1440; E.min = Math.max(0, Math.min(1439, Math.round(v))); atualizarTudo(); };
+$("cvAno").onclick = (ev) => { const r = ev.target.getBoundingClientRect(); const v = (ev.clientX - r.left - M_ANO.l) / (r.width - M_ANO.l - M_ANO.r) * (cacheAno.n - 1); definirDiaDoAno(Math.max(1, Math.min(cacheAno.n, Math.round(v) + 1))); atualizarTudo(); };
+
+let camModo = "fora";
+function camFora() { camModo = "fora"; boneco.visible = true; controls.minDistance = 2; controls.maxDistance = 80; controls.target.set(0, 1.5, 0); camera.position.set(15, 11, 19); camera.fov = 50; camera.updateProjectionMatrix(); }
+function camOlho() { camModo = "olho"; boneco.visible = false; sombraG.visible = false; controls.minDistance = 0.01; controls.maxDistance = 0.02;
+  const az = (P.solH.alt > -5 ? P.solH.az : 0) * A.RAD; controls.target.set(0, 1.5, 0);
+  camera.position.set(-0.015 * Math.sin(az), 1.5 - 0.004, 0.015 * Math.cos(az)); camera.fov = 75; camera.updateProjectionMatrix(); }
+$("camFora").onclick = camFora; $("camOlho").onclick = camOlho;
+
+let ultimoPainel = 0;
+function atualizarPainel(forcar) { const agora = performance.now(); if (!forcar && agora - ultimoPainel < 80) return; ultimoPainel = agora;
+  atualizarTabela(); graficoDia(); graficoAno(); graficoAnalema(); }
+function atualizarTudo() { sincronizarControles(); atualizarCena(); atualizarPainel(true); }
+
+function redimensionar() { const w = cena.clientWidth, h = cena.clientHeight; renderer.setSize(w, h); rot.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix(); if (P) atualizarPainel(true); }
+addEventListener("resize", redimensionar);
+
+let ultimo = performance.now();
+function quadro(agora) {
+  const dt = Math.min(0.1, (agora - ultimo) / 1000); ultimo = agora;
+  if (E.tocando) {
+    const v = +$("vel").value;
+    if (E.modo === "corrido") { E.min += v * dt; while (E.min >= 1440) { E.min -= 1440; somarDias(1); } }
+    else { acumDias += v * dt; const k = Math.floor(acumDias); if (k > 0) { acumDias -= k; somarDias(k); } }
+    sincronizarControles(); atualizarCena(); atualizarPainel(false);
+  }
+  if (camModo === "olho") { boneco.visible = false; sombraG.visible = false; }
+  controls.update(); renderer.render(scene, camera); rot.render(scene, camera);
+  requestAnimationFrame(quadro);
+}
+let acumDias = 0;
+
+// início: local configurado, data de hoje
+const iIni = Math.max(0, LOCAIS.findIndex(l => l.nome.startsWith(CFG.local_inicial || "São Paulo")));
+$("local").value = iIni; Object.assign(E, { lat: LOCAIS[iIni].lat, lon: LOCAIS[iIni].lon, fuso: LOCAIS[iIni].fuso });
+{ const agora = new Date(Date.now() + E.fuso * 3600e3); Object.assign(E, { ano: agora.getUTCFullYear(), mes: agora.getUTCMonth() + 1, dia: agora.getUTCDate(), min: agora.getUTCHours() * 60 + agora.getUTCMinutes() }); }
+// atalhos pela URL, ex.: modelo2.html#lat=-23.5&data=2026-06-21&hora=12:00&camera=olho&analema=eot
+{ const h = new URLSearchParams(location.hash.slice(1));
+  if (h.has("lat")) { E.lat = +h.get("lat"); $("local").value = "-1"; }
+  if (h.has("lon")) E.lon = +h.get("lon");
+  if (h.has("fuso")) E.fuso = +h.get("fuso");
+  if (h.has("data")) { const [a, m, d] = h.get("data").split("-").map(Number); Object.assign(E, { ano: a, mes: m, dia: d }); }
+  if (h.has("hora")) { const [hh, mm] = h.get("hora").split(":").map(Number); E.min = hh * 60 + (mm || 0); }
+  if (h.has("analema")) $("tipoAnalema").value = h.get("analema"); }
+preencherVel(); redimensionar(); camFora(); atualizarTudo();
+{ const h = new URLSearchParams(location.hash.slice(1));
+  if (h.get("camera") === "olho") camOlho();
+  if (h.has("tocar")) { E.modo = h.get("tocar") === "diario" ? "diario" : "corrido"; $("modo").value = E.modo; preencherVel(); $("play").onclick(); } }
+requestAnimationFrame(quadro);
+</script>
+</body>
+</html>

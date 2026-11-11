@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Modelo 1 · Sol, Terra e Lua vistos de fora</title>
+<link rel="stylesheet" href="estilo.css">
+<script type="importmap">{ "imports": { "three": "./vendor/three.module.min.js", "three/addons/": "./vendor/addons/" } }</script>
+</head>
+<body>
+<header>
+  <h1>Sol, Terra e Lua em movimento</h1>
+  <nav><a href="index.html">Início</a><a class="atual" href="modelo1.html">Modelo 1 · Visto de fora</a><a href="modelo2.html">Modelo 2 · Céu do observador</a></nav>
+</header>
+
+<div class="barra">
+  <div class="grupo">
+    <button id="play" class="prim">▶ Reproduzir</button>
+    <label>Velocidade
+      <select id="vel">
+        <option value="0.25">¼ dia/s</option><option value="1">1 dia/s</option><option value="3">3 dias/s</option>
+        <option value="7" selected>1 semana/s</option><option value="15">15 dias/s</option><option value="30">1 mês/s</option>
+      </select></label>
+    <label>Ano <input id="ano" type="number" min="1900" max="2100" value="2026"></label>
+  </div>
+  <div class="grupo">
+    <span>Câmera:</span>
+    <button id="camGeral">Visão geral</button><button id="camTopo">De cima</button><button id="camTerra">Seguir a Terra</button>
+  </div>
+  <div class="grupo">
+    <label><input type="checkbox" id="vPlano" checked> Plano da eclíptica</label>
+    <label><input type="checkbox" id="vOrbLua" checked> Órbita da Lua</label>
+    <label><input type="checkbox" id="vNodos" checked> Linha dos nodos</label>
+    <label><input type="checkbox" id="vGirar" checked> Rotação da Terra</label>
+  </div>
+  <div class="grupo">
+    <label>Exagero da inclinação lunar <input id="exag" type="range" min="1" max="5" step="0.5" value="1"><span id="exagV">1×</span></label>
+  </div>
+</div>
+<div class="tempo">
+  <span class="rotulo" id="dataRot">1 jan 2026</span>
+  <input id="dia" type="range" min="0" max="365" step="1" value="0">
+  <span>dia <b id="diaN">0</b> de 365</span>
+</div>
+
+<div class="cena" id="cena">
+  <div class="info" id="info"></div>
+  <canvas id="faseCv" width="110" height="130" style="position:absolute; top:10px; right:10px; background:rgba(10,20,40,.72); border-radius:9px;"></canvas>
+  <div class="legenda">Arraste para girar · roda do mouse para aproximar · botão direito para deslocar. Tamanhos e distância Terra–Lua fora de escala.</div>
+</div>
+
+<p class="nota"><b>Como ler o modelo:</b> o Sol ilumina a Terra e a Lua de verdade (a metade escura é a noite), então as fases
+aparecem sozinhas conforme a Lua gira. O eixo da Terra fica sempre apontando para a mesma direção do espaço (23,44°) e, por isso,
+cada hemisfério recebe mais luz em uma metade do ano: são as estações. A órbita da Lua é inclinada 5,145° em relação à eclíptica e
+cruza o plano da órbita da Terra nos <b>nodos</b> (☊ e ☋). Só há eclipse quando uma Lua nova ou cheia ocorre perto da linha dos nodos;
+a linha dos nodos gira lentamente (uma volta a cada 18,6 anos). As posições do Sol e da Lua vêm de fórmulas astronômicas reais, por isso
+os alertas de eclipse coincidem com as datas reais do ano escolhido.</p>
+
+<script type="module">
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { CSS2DRenderer, CSS2DObject } from "three/addons/renderers/CSS2DRenderer.js";
+import * as A from "./astro.js";
+
+const CFG = {"ano": 2026, "local_inicial": "São Paulo", "locais": [{"nome": "São Paulo (SP)", "lat": -23.55, "lon": -46.63, "fuso": -3}, {"nome": "Campinas (SP)", "lat": -22.91, "lon": -47.06, "fuso": -3}, {"nome": "Cuiabá (MT)", "lat": -15.6, "lon": -56.1, "fuso": -4}, {"nome": "Latitude do TCC (−11,31°)", "lat": -11.31, "lon": -56.1, "fuso": -4}, {"nome": "Macapá (Linha do Equador)", "lat": 0.03, "lon": -51.07, "fuso": -3}, {"nome": "Ubatuba (Trópico de Capricórnio)", "lat": -23.44, "lon": -45.07, "fuso": -3}, {"nome": "Porto Alegre (RS)", "lat": -30.03, "lon": -51.23, "fuso": -3}, {"nome": "Lisboa (Portugal)", "lat": 38.72, "lon": -9.14, "fuso": 0}, {"nome": "Tromsø (Círculo Polar Ártico)", "lat": 69.65, "lon": 18.96, "fuso": 1}, {"nome": "Polo Sul", "lat": -90.0, "lon": 0.0, "fuso": 0}]};
+const UA = 12, R_ORB_LUA = 2.6, R_TERRA = 0.5, R_LUA = 0.17, R_SOL = 1.5;
+const MESES = ["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
+const $ = (id) => document.getElementById(id);
+
+// --- cena ---
+const cena = $("cena");
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+cena.prepend(renderer.domElement);
+const rot = new CSS2DRenderer();
+rot.domElement.style.position = "absolute"; rot.domElement.style.top = "0"; rot.domElement.style.pointerEvents = "none";
+cena.appendChild(rot.domElement);
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x02040c);
+const camera = new THREE.PerspectiveCamera(45, 1, 0.05, 2000);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+
+// eclíptica (X, Y, Z) -> three (X, Z, -Y): plano da eclíptica = plano horizontal da cena
+const E = (x, y, z) => new THREE.Vector3(x, z, -y);
+const eclVec = (lon, lat, r) => E(r * Math.cos(lat*A.RAD) * Math.cos(lon*A.RAD), r * Math.cos(lat*A.RAD) * Math.sin(lon*A.RAD), r * Math.sin(lat*A.RAD));
+
+function rotulo(txt, cor = "#fff") { const d = document.createElement("div"); d.className = "rot3d"; d.textContent = txt; d.style.color = cor; return new CSS2DObject(d); }
+
+// estrelas
+{ const g = new THREE.BufferGeometry(), p = [];
+  for (let i = 0; i < 2500; i++) { const v = new THREE.Vector3().randomDirection().multiplyScalar(400 + Math.random()*300); p.push(v.x, v.y, v.z); }
+  g.setAttribute("position", new THREE.Float32BufferAttribute(p, 3));
+  scene.add(new THREE.Points(g, new THREE.PointsMaterial({ color: 0xffffff, size: 1.2, sizeAttenuation: false }))); }
+
+// Sol
+function brilho(c1, c2) { const cv = document.createElement("canvas"); cv.width = cv.height = 128; const x = cv.getContext("2d");
+  const gr = x.createRadialGradient(64,64,0,64,64,64); gr.addColorStop(0, c1); gr.addColorStop(0.25, c2); gr.addColorStop(1, "rgba(255,150,0,0)");
+  x.fillStyle = gr; x.fillRect(0,0,128,128); return new THREE.CanvasTexture(cv); }
+const sol = new THREE.Mesh(new THREE.SphereGeometry(R_SOL, 48, 32), new THREE.MeshBasicMaterial({ color: 0xffd34d }));
+scene.add(sol);
+const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: brilho("rgba(255,240,180,1)", "rgba(255,190,60,.55)"), blending: THREE.AdditiveBlending, depthWrite: false }));
+halo.scale.set(9, 9, 1); scene.add(halo);
+const rSol = rotulo("Sol", "#ffd27a"); rSol.position.set(0, -R_SOL - 0.5, 0); sol.add(rSol);
+scene.add(new THREE.PointLight(0xffffff, 4.5, 0, 0));
+scene.add(new THREE.AmbientLight(0xffffff, 0.07));
+
+// textura da Terra: oceano + paralelos/meridianos + trópicos e equador destacados
+function texTerra() { const cv = document.createElement("canvas"); cv.width = 1024; cv.height = 512; const x = cv.getContext("2d");
+  const g = x.createLinearGradient(0,0,0,512); g.addColorStop(0,"#e8f4ff"); g.addColorStop(0.08,"#2f6fb5"); g.addColorStop(0.5,"#1d5fa8"); g.addColorStop(0.92,"#2f6fb5"); g.addColorStop(1,"#e8f4ff");
+  x.fillStyle = g; x.fillRect(0,0,1024,512);
+  // "continentes" estilizados (manchas) só para perceber a rotação
+  x.fillStyle = "#4f9a4a"; const blobs = [[160,170,90,60],[230,330,60,95],[520,150,120,55],[540,300,70,90],[760,190,130,70],[830,350,60,40]];
+  for (const [cx,cy,rx,ry] of blobs) { x.beginPath(); x.ellipse(cx,cy,rx,ry,0.3,0,Math.PI*2); x.fill(); }
+  x.strokeStyle = "rgba(255,255,255,.35)"; x.lineWidth = 1;
+  for (let lat = -60; lat <= 60; lat += 30) { const y = 256 - lat/90*256; x.beginPath(); x.moveTo(0,y); x.lineTo(1024,y); x.stroke(); }
+  for (let lo = 0; lo < 360; lo += 30) { const xx = lo/360*1024; x.beginPath(); x.moveTo(xx,0); x.lineTo(xx,512); x.stroke(); }
+  x.lineWidth = 3; x.strokeStyle = "#ff5252"; x.beginPath(); x.moveTo(0,256); x.lineTo(1024,256); x.stroke();
+  x.lineWidth = 2; x.setLineDash([10,8]); x.strokeStyle = "#ffd54f";
+  for (const lat of [23.44, -23.44]) { const y = 256 - lat/90*256; x.beginPath(); x.moveTo(0,y); x.lineTo(1024,y); x.stroke(); }
+  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; return t; }
+function texLua() { const cv = document.createElement("canvas"); cv.width = 256; cv.height = 128; const x = cv.getContext("2d");
+  x.fillStyle = "#b9b9b9"; x.fillRect(0,0,256,128);
+  for (let i = 0; i < 70; i++) { x.fillStyle = `rgba(90,90,90,${0.15+Math.random()*0.3})`; x.beginPath(); x.arc(Math.random()*256, 15+Math.random()*98, 2+Math.random()*10, 0, Math.PI*2); x.fill(); }
+  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; return t; }
+
+// Terra: grupo inclinado (eixo fixo no espaço) + esfera que gira
+const terra = new THREE.Group(); scene.add(terra);
+const inclinacao = new THREE.Group(); terra.add(inclinacao);
+const eps = 23.44 * A.RAD;
+// polo norte celeste em coordenadas da eclíptica: (0, sen ε, cos ε)
+const polo = E(0, Math.sin(eps), Math.cos(eps)).normalize();
+inclinacao.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), polo);
+const globo = new THREE.Mesh(new THREE.SphereGeometry(R_TERRA, 64, 48), new THREE.MeshStandardMaterial({ map: texTerra(), roughness: 1, metalness: 0 }));
+inclinacao.add(globo);
+const eixo = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,-R_TERRA*2,0), new THREE.Vector3(0,R_TERRA*2,0)]), new THREE.LineBasicMaterial({ color: 0x66ff88 }));
+inclinacao.add(eixo);
+const rPN = rotulo("N", "#8f8"); rPN.position.set(0, R_TERRA*2.2, 0); inclinacao.add(rPN);
+const rTerra = rotulo("Terra", "#9fd3ff"); rTerra.position.set(0, -R_TERRA - 0.35, 0); terra.add(rTerra);
+// eixo perpendicular à eclíptica, para comparar a inclinação
+const perp = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,-R_TERRA*1.8,0), new THREE.Vector3(0,R_TERRA*1.8,0)]),
+  new THREE.LineDashedMaterial({ color: 0xffffff, dashSize: 0.08, gapSize: 0.06, transparent: true, opacity: .6 }));
+perp.computeLineDistances(); terra.add(perp);
+
+const lua = new THREE.Mesh(new THREE.SphereGeometry(R_LUA, 40, 24), new THREE.MeshStandardMaterial({ map: texLua(), roughness: 1 }));
+scene.add(lua);
+const rLua = rotulo("Lua", "#ddd"); rLua.position.set(0, -R_LUA - 0.25, 0); lua.add(rLua);
+
+// plano da eclíptica e órbita da Terra
+const planoEcl = new THREE.Mesh(new THREE.CircleGeometry(UA * 1.25, 128), new THREE.MeshBasicMaterial({ color: 0x4aa3ff, transparent: true, opacity: 0.07, side: THREE.DoubleSide, depthWrite: false }));
+planoEcl.rotation.x = -Math.PI / 2; scene.add(planoEcl);
+function linha(n, cor, opac = 1, tracejada = false) {
+  const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(new Float32Array(n*3), 3));
+  const m = tracejada ? new THREE.LineDashedMaterial({ color: cor, dashSize: 0.25, gapSize: 0.18, transparent: opac < 1, opacity: opac })
+                      : new THREE.LineBasicMaterial({ color: cor, transparent: opac < 1, opacity: opac });
+  const l = new THREE.Line(g, m); l.frustumCulled = false; scene.add(l); return l; }
+function definir(l, pts) { const a = l.geometry.attributes.position; pts.forEach((p, i) => a.setXYZ(i, p.x, p.y, p.z)); a.needsUpdate = true; if (l.material.isLineDashedMaterial) l.computeLineDistances(); }
+const orbTerra = linha(366, 0x4fc3f7, 0.7);
+const orbLua = linha(181, 0xff6f9c);
+const linNodos = linha(2, 0xff6f9c, 0.8, true);
+const linSolTerra = linha(2, 0xffb74d, 0.5, true);
+const rNA = rotulo("☊", "#ff8fb3"), rND = rotulo("☋", "#ff8fb3"); scene.add(rNA); scene.add(rND);
+// marcas dos equinócios e solstícios na órbita da Terra
+for (const [lonSol, txt] of [[0,"Equinócio de março"],[90,"Solstício de junho"],[180,"Equinócio de setembro"],[270,"Solstício de dezembro"]]) {
+  const r = rotulo(txt, "#90caf9"); r.element.style.fontSize = "11px"; r.element.style.fontWeight = "400"; r.position.copy(eclVec(lonSol + 180, 0, UA * 1.13)); scene.add(r); }
+
+// --- estado ---
+let ano = 2026, t = 0, tocando = false, seguir = false, exag = 1;
+const jd0 = () => A.jdLocal(ano, 1, 1, 0, 0);
+const diasNoAno = () => ((ano % 4 === 0 && ano % 100 !== 0) || ano % 400 === 0) ? 366 : 365;
+
+function desenharOrbitaTerra() {
+  const pts = []; for (let i = 0; i <= 365; i++) { const s = A.sol(A.dJ2000(jd0()) + i * 365.2422 / 365); pts.push(eclVec(s.lon + 180, 0, s.R * UA)); }
+  definir(orbTerra, pts);
+}
+
+function faseDesenho(f) { // Lua como vista da Terra
+  const cv = $("faseCv"), x = cv.getContext("2d"); x.clearRect(0,0,110,130);
+  const cx = 55, cy = 52, r = 38; x.fillStyle = "#222"; x.beginPath(); x.arc(cx,cy,r,0,Math.PI*2); x.fill();
+  // parte iluminada, como vista do hemisfério sul (crescente iluminada à esquerda)
+  const k = Math.cos(f.dl * A.RAD); // 1 = nova, -1 = cheia
+  const L = f.cresc ? -1 : 1;
+  x.fillStyle = "#eee"; x.beginPath();
+  for (let i = 0; i <= 60; i++) { const a = -Math.PI/2 + Math.PI * i / 60; x.lineTo(cx + L * r * Math.cos(a), cy + r * Math.sin(a)); }
+  for (let i = 60; i >= 0; i--) { const a = -Math.PI/2 + Math.PI * i / 60; x.lineTo(cx + L * k * r * Math.cos(a), cy + r * Math.sin(a)); }
+  x.closePath(); x.fill();
+  x.fillStyle = "#fff"; x.font = "12px system-ui"; x.textAlign = "center";
+  x.fillText(f.nome, 55, 108); x.fillText(`${Math.round(f.ilum*100)}% iluminada`, 55, 123);
+}
+
+function estacaoSul(lonSol) { return ["outono", "inverno", "primavera", "verão"][Math.floor(A.norm360(lonSol) / 90)]; }
+
+function atualizar() {
+  const d = A.dJ2000(jd0() + t);
+  const s = A.sol(d), l = A.lua(d);
+  const pT = eclVec(s.lon + 180, 0, s.R * UA);
+  const anterior = terra.position.clone();
+  terra.position.copy(pT);
+  if (seguir) { camera.position.add(pT.clone().sub(anterior)); controls.target.copy(pT); }
+  // rotação da Terra (tempo sideral)
+  globo.rotation.y = $("vGirar").checked ? A.tempoSideral(d, 0) * A.RAD + Math.PI : Math.PI;
+  // Lua: inclinação visual (com exagero opcional) a partir do nodo
+  const inc = Math.asin(Math.min(1, Math.sin(5.145 * A.RAD) * exag)) * A.DEG;
+  const u = l.lon - l.no; // argumento de latitude aproximado
+  const latVis = Math.asin(Math.sin(inc * A.RAD) * Math.sin(u * A.RAD)) * A.DEG;
+  lua.position.copy(pT).add(eclVec(l.lon, latVis, R_ORB_LUA));
+  lua.rotation.y = (l.lon) * A.RAD; // mesma face voltada para a Terra
+  const pts = [];
+  for (let i = 0; i <= 180; i++) { const uu = i * 2; const lo = l.no + Math.atan2(Math.cos(inc*A.RAD) * Math.sin(uu*A.RAD), Math.cos(uu*A.RAD)) * A.DEG;
+    const la = Math.asin(Math.sin(inc*A.RAD) * Math.sin(uu*A.RAD)) * A.DEG; pts.push(pT.clone().add(eclVec(lo, la, R_ORB_LUA))); }
+  definir(orbLua, pts);
+  definir(linNodos, [pT.clone().add(eclVec(l.no, 0, R_ORB_LUA * 1.35)), pT.clone().add(eclVec(l.no + 180, 0, R_ORB_LUA * 1.35))]);
+  rNA.position.copy(pT).add(eclVec(l.no, 0, R_ORB_LUA * 1.45)); rND.position.copy(pT).add(eclVec(l.no + 180, 0, R_ORB_LUA * 1.45));
+  definir(linSolTerra, [new THREE.Vector3(), pT]);
+  // informações
+  const f = A.faseLua(s, l);
+  const data = new Date((jd0() + t - 2440587.5) * 864e5);
+  const dataTxt = `${data.getUTCDate()} ${MESES[data.getUTCMonth()]} ${data.getUTCFullYear()}`;
+  $("dataRot").textContent = dataTxt;
+  let alerta = "";
+  const sizigia = Math.min(f.dl, 360 - f.dl) < 13 ? "solar" : Math.abs(f.dl - 180) < 13 ? "lunar" : "";
+  if (sizigia && Math.abs(l.lat) < 1.4) alerta = `<br><span class="alerta">⚠ Lua ${sizigia === "solar" ? "nova" : "cheia"} perto do nodo: época de ECLIPSE ${sizigia.toUpperCase()}</span>`;
+  $("info").innerHTML = `<b>${dataTxt}</b> · dia ${Math.floor(t)}<br>
+    Estação no hemisfério sul: <b>${estacaoSul(s.lon)}</b><br>
+    Longitude do Sol na eclíptica: ${s.lon.toFixed(1)}° · declinação ${s.dec >= 0 ? "+" : ""}${s.dec.toFixed(1)}°<br>
+    Distância Terra–Sol: ${(s.R * 149.6).toFixed(2)} milhões de km<br>
+    Lua: ${f.nome} (${Math.round(f.ilum * 100)}%) · latitude eclíptica ${l.lat >= 0 ? "+" : ""}${l.lat.toFixed(2)}°<br>
+    Distância Terra–Lua: ${Math.round(l.dist).toLocaleString("pt-BR")} km${alerta}`;
+  faseDesenho(f);
+  if (!arrastando) { $("dia").value = Math.floor(t); }
+  $("diaN").textContent = Math.floor(t);
+}
+
+// --- controles ---
+let arrastando = false;
+$("dia").addEventListener("input", (e) => { arrastando = true; t = +e.target.value; atualizar(); });
+$("dia").addEventListener("change", () => { arrastando = false; });
+$("play").onclick = () => { tocando = !tocando; $("play").textContent = tocando ? "⏸ Pausar" : "▶ Reproduzir"; };
+$("ano").addEventListener("change", (e) => { ano = Math.max(1900, Math.min(2100, +e.target.value || 2026)); $("dia").max = diasNoAno(); t = Math.min(t, diasNoAno()); desenharOrbitaTerra(); atualizar(); });
+$("exag").addEventListener("input", (e) => { exag = +e.target.value; $("exagV").textContent = exag + "×"; atualizar(); });
+for (const [id, obj] of [["vPlano", [planoEcl]], ["vOrbLua", [orbLua]], ["vNodos", [linNodos, rNA, rND]]])
+  $(id).addEventListener("change", (e) => obj.forEach(o => o.visible = e.target.checked));
+$("vGirar").addEventListener("change", atualizar);
+function camGeral() { seguir = false; controls.target.set(0,0,0); camera.position.set(UA*0.9, UA*0.8, UA*1.5); }
+$("camGeral").onclick = camGeral;
+$("camTopo").onclick = () => { seguir = false; controls.target.set(0,0,0); camera.position.set(0.01, UA*2.3, 0.01); };
+$("camTerra").onclick = () => { seguir = true; controls.target.copy(terra.position); camera.position.copy(terra.position).add(new THREE.Vector3(3.5, 2.4, 5.5)); };
+
+function redimensionar() { const w = cena.clientWidth, h = cena.clientHeight; renderer.setSize(w, h); rot.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix(); }
+addEventListener("resize", redimensionar);
+
+let ultimo = performance.now();
+function quadro(agora) {
+  const dt = Math.min(0.1, (agora - ultimo) / 1000); ultimo = agora;
+  if (tocando) { t += dt * +$("vel").value; const n = diasNoAno(); if (t > n) t -= n; atualizar(); }
+  controls.update(); renderer.render(scene, camera); rot.render(scene, camera);
+  requestAnimationFrame(quadro);
+}
+if (CFG.ano) { ano = CFG.ano; $("ano").value = ano; }
+redimensionar(); camGeral(); desenharOrbitaTerra();
+// atalhos pela URL, ex.: modelo1.html#dia=172&camera=terra
+{ const h = new URLSearchParams(location.hash.slice(1));
+  if (h.has("dia")) t = +h.get("dia");
+  if (h.has("exagero")) { exag = +h.get("exagero"); $("exag").value = exag; $("exagV").textContent = exag + "×"; } }
+atualizar();
+if (new URLSearchParams(location.hash.slice(1)).get("camera") === "terra") $("camTerra").onclick();
+requestAnimationFrame(quadro);
+window.__modelo = { set t(v) { t = v; atualizar(); }, camTerra: () => $("camTerra").onclick() };
+</script>
+</body>
+</html>

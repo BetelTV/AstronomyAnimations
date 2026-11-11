@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sol, Terra e Lua em movimento</title>
+<link rel="stylesheet" href="estilo.css">
+<style>
+  main { max-width: 1050px; margin: 0 auto; padding: 22px 16px; }
+  .cartoes { display:grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap:18px; }
+  .cartao { background:#fff; border-radius:12px; padding:20px; box-shadow:0 1px 6px rgba(0,0,0,.08); text-decoration:none; color:inherit; border-top:5px solid var(--cor); }
+  .cartao:hover { box-shadow:0 4px 14px rgba(0,0,0,.15); }
+  .cartao h2 { margin:0 0 8px; color:var(--cor); font-size:1.2rem; }
+  .cartao ul { margin:8px 0 0; padding-left:18px; line-height:1.6; font-size:.93rem; }
+  p { line-height:1.6; color:#33475b; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Sol, Terra e Lua em movimento</h1>
+  <nav><a class="atual" href="index.html">Início</a><a href="modelo1.html">Modelo 1 · Visto de fora</a><a href="modelo2.html">Modelo 2 · Céu do observador</a></nav>
+</header>
+<main>
+  <p>Modelos 3D interativos do sistema Sol–Terra–Lua, desenvolvidos a partir de um TCC em Licenciatura em Física
+  (modelos originais no GeoGebra, 2021). Tudo é calculado em tempo real no navegador, com fórmulas astronômicas reais.</p>
+  <div class="cartoes">
+    <a class="cartao" href="modelo1.html"><h2>Modelo 1 · Visto de fora</h2>
+      Terra e Lua girando em torno do Sol ao longo do ano.
+      <ul><li>Fases da Lua pela iluminação real do Sol</li><li>Eixo da Terra inclinado 23,44° e as estações</li>
+      <li>Órbita lunar inclinada 5,145°, nodos e épocas de eclipse</li><li>Passo de 1 dia, ano escolhido pelo usuário</li></ul></a>
+    <a class="cartao" href="modelo2.html"><h2>Modelo 2 · Céu do observador</h2>
+      A esfera celeste vista por um observador em qualquer lugar da Terra.
+      <ul><li>Latitude, longitude, data e hora livres (passo de 1 minuto)</li><li>Tabela com nascer, pôr, altura, azimute e fase da Lua</li>
+      <li>Altura do Sol no dia, declinação no ano e analema</li><li>Modo “mesmo horário, dia após dia” para ver o analema surgir</li></ul></a>
+  </div>
+  <p style="font-size:.85rem; margin-top:26px">Dica: os modelos aceitam atalhos na URL para preparar uma aula, por exemplo
+  <code>modelo2.html#lat=-23.55&amp;data=2026-06-21&amp;hora=12:00&amp;camera=olho</code> ou
+  <code>modelo2.html#tocar=diario&amp;hora=09:00</code>.</p>
+</main>
+</body>
+</html>
