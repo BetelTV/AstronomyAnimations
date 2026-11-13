@@ -6,6 +6,13 @@
 <title>Sol, Terra e Lua em movimento · Matheus Fagioli</title>
 <meta name="description" content="Modelos 3D interativos do sistema Sol–Terra–Lua: fases da Lua, eclipses, estações do ano e o céu do observador. TCC de Matheus Fagioli (2021), Licenciatura em Ciências Naturais e Matemática.">
 <link rel="stylesheet" href="estilo.css">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#03050f">
+<link rel="icon" type="image/png" href="icones/favicon-32.png">
+<link rel="apple-touch-icon" href="icones/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Sol·Terra·Lua">
+<script src="app.js" defer></script>
 <style>
   :root { --ceu:#03050f; --ceu2:#0a1330; --ouro:#ffcf6b; --ouro2:#ff9d3c; --texto:#dfe7f3; --suave:#9aabc4; --linha:rgba(160,190,255,.16); --cartao:rgba(14,24,52,.72); }
   html { background: var(--ceu); }
@@ -31,6 +38,11 @@
   .acoes { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 22px; }
   .botao { display: inline-flex; align-items: center; gap: 8px; text-decoration: none; padding: 11px 18px; border-radius: 10px; font-weight: 600; font-size: .95rem; border: 1px solid var(--linha); color: var(--texto); background: rgba(20,32,66,.6); transition: transform .15s, background .15s; }
   .botao:hover { transform: translateY(-1px); background: rgba(34,52,100,.75); }
+  button.botao { font: inherit; font-weight: 600; cursor: pointer; }
+  .botao.instalar { border-color: rgba(126,224,164,.55); color: #b9f5cf; }
+  .botao[hidden], .dicaIos[hidden] { display: none; }
+  .dicaIos { margin: 14px 0 0; max-width: 560px; font-size: .88rem; line-height: 1.5; color: var(--suave); border: 1px dashed var(--linha); border-radius: 12px; padding: 10px 14px; }
+  .dicaIos b { color: var(--texto); }
   .botao.prim { background: linear-gradient(135deg, var(--ouro), var(--ouro2)); color: #1b1300; border-color: transparent; box-shadow: 0 6px 22px rgba(255,157,60,.3); }
 
   /* sistema animado */
@@ -89,7 +101,7 @@
 <canvas id="estrelas" aria-hidden="true"></canvas>
 <header>
   <h1>Sol, Terra e Lua em movimento</h1>
-  <nav><a class="atual" href="index.html">Início</a><a href="modelo1.html">Modelo 1 · Visto de fora</a><a href="modelo2.html">Modelo 2 · Céu do observador</a></nav>
+  <nav><a class="atual" href="index.html">Início</a><a href="modelo1.html">Modelo 1<span class="longo"> · Visto de fora</span></a><a href="modelo2.html">Modelo 2<span class="longo"> · Céu do observador</span></a></nav>
 </header>
 
 <main>
@@ -108,7 +120,10 @@
       <div class="acoes">
         <a class="botao prim" href="modelo1.html">🌍 Abrir o Modelo 1</a>
         <a class="botao" href="modelo2.html">🔭 Abrir o Modelo 2</a>
+        <button class="botao instalar" data-instalar hidden>📲 Instalar o app</button>
       </div>
+      <p class="dicaIos" data-dica-ios hidden>📲 <b>Para instalar no iPhone ou iPad:</b> no Safari, toque em <b>Compartilhar</b>
+      (o quadrado com a seta) e depois em <b>Adicionar à Tela de Início</b>. O app funciona mesmo sem internet.</p>
     </div>
     <div class="sistema" role="img" aria-label="Animação: a Terra gira em torno do Sol e a Lua gira em torno da Terra">
       <div class="orbita"></div>

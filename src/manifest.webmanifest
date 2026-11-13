@@ -1,0 +1,23 @@
+{
+  "name": "Sol, Terra e Lua em movimento",
+  "short_name": "Sol·Terra·Lua",
+  "description": "Modelos 3D interativos do sistema Sol–Terra–Lua: fases da Lua, eclipses, estações do ano e o céu do observador. TCC de Matheus Fagioli (2021), Licenciatura em Ciências Naturais e Matemática.",
+  "lang": "pt-BR",
+  "id": "./",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#03050f",
+  "theme_color": "#1e3a5f",
+  "categories": ["education", "science"],
+  "icons": [
+    { "src": "icones/icone-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icones/icone-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icones/icone-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Modelo 1 · Visto de fora", "short_name": "Modelo 1", "url": "./modelo1.html", "icons": [{ "src": "icones/icone-192.png", "sizes": "192x192" }] },
+    { "name": "Modelo 2 · Céu do observador", "short_name": "Modelo 2", "url": "./modelo2.html", "icons": [{ "src": "icones/icone-192.png", "sizes": "192x192" }] }
+  ]
+}

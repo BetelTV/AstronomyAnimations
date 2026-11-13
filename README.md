@@ -10,6 +10,18 @@ Trabalho de Conclusão de Curso de **Matheus Fagioli** (2021), Licenciatura em C
 | `modelo1.html` | Terra e Lua vistas de fora: fases pela iluminação real, eixo inclinado 23,44°, órbita lunar inclinada 5,145°, nodos e épocas de eclipse. **Cones de sombra** (umbra, penumbra e antumbra da Lua; umbra e penumbra da Terra) com Terra e Lua em escala real entre si, diagnóstico do eclipse (total, anular, parcial, penumbral ou quanto a sombra passou longe) e botões para ir ao eclipse anterior/próximo. Passo de 1 hora. |
 | `modelo2.html` | Céu do observador: latitude, longitude, data e hora livres (passo de 1 minuto); **mapa-múndi** para escolher o local com um clique, com dia/noite, Sol e Lua a pino; tabela de dados; altura do Sol e da Lua no dia; declinação do Sol no ano; analema no céu e analema “equação do tempo × declinação”. |
 
+## Instalar como app
+
+O site é um **PWA** (app instalável) e funciona **sem internet** depois de aberto uma vez.
+
+- **Android / computador (Chrome, Edge):** abra o site e toque em **📲 Instalar o app** na página inicial
+  (ou no menu do navegador, “Instalar app” / “Adicionar à tela inicial”).
+- **iPhone / iPad (Safari):** toque em **Compartilhar** e depois em **Adicionar à Tela de Início**.
+
+Arquivos do app em `src/`: `manifest.webmanifest` (nome, cores, ícones), `sw.js` (service worker que guarda os
+arquivos para uso offline; ao acrescentar um arquivo novo ao site, inclua-o na lista e mude a `VERSAO`),
+`app.js` (registro do service worker, botão de instalar e controles recolhíveis no celular) e `icones/`.
+
 ## Estrutura
 
 ```

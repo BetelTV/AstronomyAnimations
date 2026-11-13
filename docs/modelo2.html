@@ -5,6 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Modelo 2 · O céu do observador</title>
 <link rel="stylesheet" href="estilo.css">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#1e3a5f">
+<link rel="icon" type="image/png" href="icones/favicon-32.png">
+<link rel="apple-touch-icon" href="icones/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Sol·Terra·Lua">
+<script src="app.js" defer></script>
 <script type="importmap">{ "imports": { "three": "./vendor/three.module.min.js", "three/addons/": "./vendor/addons/" } }</script>
 <style>
   .principal { display:grid; grid-template-columns: minmax(0, 1fr) 440px; }
@@ -44,7 +51,7 @@
 <body>
 <header>
   <h1>Sol, Terra e Lua em movimento</h1>
-  <nav><a href="index.html">Início</a><a href="modelo1.html">Modelo 1 · Visto de fora</a><a class="atual" href="modelo2.html">Modelo 2 · Céu do observador</a></nav>
+  <nav><a href="index.html">Início</a><a href="modelo1.html">Modelo 1<span class="longo"> · Visto de fora</span></a><a class="atual" href="modelo2.html">Modelo 2<span class="longo"> · Céu do observador</span></a></nav>
 </header>
 
 <div class="barra">
@@ -633,7 +640,9 @@ $("mHora").oninput = (e) => { E.min = +e.target.value; atualizarTudo(); };
 addEventListener("resize", () => desenharMapa());
 
 let camModo = "fora";
-function camFora() { camModo = "fora"; boneco.visible = true; controls.minDistance = 2; controls.maxDistance = 80; controls.target.set(0, 1.5, 0); camera.position.set(15, 11, 19); camera.fov = 50; camera.updateProjectionMatrix(); }
+function camFora() { camModo = "fora"; boneco.visible = true; controls.minDistance = 2; controls.maxDistance = 80; controls.target.set(0, 1.5, 0);
+  const longe = camera.aspect < 1 ? Math.min(1.7, 0.85 / camera.aspect) : 1; // tela em pé (celular): afasta para caber a cúpula
+  camera.position.set(15 * longe, 11 * longe, 19 * longe); camera.fov = 50; camera.updateProjectionMatrix(); }
 function camOlho() { camModo = "olho"; boneco.visible = false; sombraG.visible = false; controls.minDistance = 0.01; controls.maxDistance = 0.02;
   const az = (P.solH.alt > -5 ? P.solH.az : 0) * A.RAD; controls.target.set(0, 1.5, 0);
   camera.position.set(-0.015 * Math.sin(az), 1.5 - 0.004, 0.015 * Math.cos(az)); camera.fov = 75; camera.updateProjectionMatrix(); }
