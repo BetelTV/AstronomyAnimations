@@ -1,0 +1,5 @@
+mundo.json — contornos dos países (escala 1:110 milhões).
+
+Fonte: Natural Earth (https://www.naturalearthdata.com), via pacote "world-atlas" 2.0.2 (countries-110m).
+Natural Earth é de domínio público. Convertido de TopoJSON para uma lista de anéis [lon, lat, ...]
+com duas casas decimais.

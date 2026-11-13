@@ -30,11 +30,26 @@ export function lua(d) {
   const F = 93.2721 + 13.22935024 * d;
   const D = 297.8502 + 12.19074912 * d;
   const M = 357.5291 + 0.98560028 * d;
-  const lon = norm360(Lp + 6.289 * sin(Mp) + 1.274 * sin(2 * D - Mp) + 0.658 * sin(2 * D)
-    + 0.214 * sin(2 * Mp) - 0.186 * sin(M) - 0.114 * sin(2 * F) - 0.059 * sin(2 * D - 2 * Mp)
-    - 0.057 * sin(2 * D - M - Mp) + 0.053 * sin(2 * D + Mp));
-  const lat = 5.128 * sin(F) + 0.281 * sin(Mp + F) + 0.278 * sin(Mp - F) + 0.173 * sin(2 * D - F);
-  const dist = 385001 - 20905 * cos(Mp) - 3699 * cos(2 * D - Mp) - 2956 * cos(2 * D); // km
+  // maiores termos das tabelas 47.A e 47.B de Meeus (erro típico ~0,05° — suficiente para classificar eclipses)
+  const lon = norm360(Lp + 6.288774 * sin(Mp) + 1.274027 * sin(2 * D - Mp) + 0.658314 * sin(2 * D)
+    + 0.213618 * sin(2 * Mp) - 0.185116 * sin(M) - 0.114332 * sin(2 * F) + 0.058793 * sin(2 * D - 2 * Mp)
+    + 0.057066 * sin(2 * D - M - Mp) + 0.053322 * sin(2 * D + Mp) + 0.045758 * sin(2 * D - M)
+    - 0.040923 * sin(M - Mp) - 0.034720 * sin(D) - 0.030383 * sin(M + Mp) + 0.015327 * sin(2 * D - 2 * F)
+    - 0.012528 * sin(Mp + 2 * F) + 0.010980 * sin(Mp - 2 * F) + 0.010675 * sin(4 * D - Mp) + 0.010034 * sin(3 * Mp)
+    + 0.008548 * sin(4 * D - 2 * Mp) - 0.007888 * sin(2 * D + M - Mp) - 0.006766 * sin(2 * D + M)
+    - 0.005163 * sin(D - Mp) + 0.004987 * sin(D + M) + 0.004036 * sin(2 * D - M + Mp));
+  const lat = 5.128122 * sin(F) + 0.280602 * sin(Mp + F) + 0.277693 * sin(Mp - F) + 0.173237 * sin(2 * D - F)
+    + 0.055413 * sin(2 * D - Mp + F) + 0.046271 * sin(2 * D - Mp - F) + 0.032573 * sin(2 * D + F)
+    + 0.017198 * sin(2 * Mp + F) + 0.009266 * sin(2 * D + Mp - F) + 0.008822 * sin(2 * Mp - F)
+    + 0.008216 * sin(2 * D - M - F) + 0.004324 * sin(2 * D - 2 * Mp - F) + 0.004200 * sin(2 * D + Mp + F)
+    - 0.003359 * sin(2 * D + M - F);
+  const dist = 385000.56 - 20905.355 * cos(Mp) - 3699.111 * cos(2 * D - Mp) - 2955.968 * cos(2 * D)
+    - 569.925 * cos(2 * Mp) + 48.888 * cos(M) - 3.149 * cos(2 * F) + 246.158 * cos(2 * D - 2 * Mp)
+    - 152.138 * cos(2 * D - M - Mp) - 170.733 * cos(2 * D + Mp) - 204.586 * cos(2 * D - M)
+    - 129.620 * cos(M - Mp) + 108.743 * cos(D) + 104.755 * cos(M + Mp) + 10.321 * cos(2 * D - 2 * F)
+    + 79.661 * cos(Mp - 2 * F) - 34.782 * cos(4 * D - Mp) - 23.210 * cos(3 * Mp) - 21.636 * cos(4 * D - 2 * Mp)
+    + 24.208 * cos(2 * D + M - Mp) + 30.824 * cos(2 * D + M) - 8.379 * cos(D - Mp) - 16.675 * cos(D + M)
+    - 12.831 * cos(2 * D - M + Mp); // km
   const no = norm360(125.0445 - 0.0529538083 * d); // nodo ascendente médio
   return { lon, lat, dist, no };
 }

@@ -42,11 +42,27 @@ def sol(d):
 def lua(d):
     Lp, Mp = 218.3165 + 13.17639648 * d, 134.9634 + 13.06499295 * d
     F, D, M = 93.2721 + 13.22935024 * d, 297.8502 + 12.19074912 * d, 357.5291 + 0.98560028 * d
-    lon = n360(Lp + 6.289 * sen(Mp) + 1.274 * sen(2 * D - Mp) + 0.658 * sen(2 * D) + 0.214 * sen(2 * Mp)
-               - 0.186 * sen(M) - 0.114 * sen(2 * F) - 0.059 * sen(2 * D - 2 * Mp) - 0.057 * sen(2 * D - M - Mp)
-               + 0.053 * sen(2 * D + Mp))
-    lat = 5.128 * sen(F) + 0.281 * sen(Mp + F) + 0.278 * sen(Mp - F) + 0.173 * sen(2 * D - F)
-    dist = 385001 - 20905 * cos(Mp) - 3699 * cos(2 * D - Mp) - 2956 * cos(2 * D)
+    # maiores termos das tabelas 47.A e 47.B de Meeus (iguais aos de src/astro.js)
+    lon = n360(Lp + 6.288774 * sen(Mp) + 1.274027 * sen(2 * D - Mp) + 0.658314 * sen(2 * D)
+               + 0.213618 * sen(2 * Mp) - 0.185116 * sen(M) - 0.114332 * sen(2 * F) + 0.058793 * sen(2 * D - 2 * Mp)
+               + 0.057066 * sen(2 * D - M - Mp) + 0.053322 * sen(2 * D + Mp) + 0.045758 * sen(2 * D - M)
+               - 0.040923 * sen(M - Mp) - 0.034720 * sen(D) - 0.030383 * sen(M + Mp) + 0.015327 * sen(2 * D - 2 * F)
+               - 0.012528 * sen(Mp + 2 * F) + 0.010980 * sen(Mp - 2 * F) + 0.010675 * sen(4 * D - Mp)
+               + 0.010034 * sen(3 * Mp) + 0.008548 * sen(4 * D - 2 * Mp) - 0.007888 * sen(2 * D + M - Mp)
+               - 0.006766 * sen(2 * D + M) - 0.005163 * sen(D - Mp) + 0.004987 * sen(D + M)
+               + 0.004036 * sen(2 * D - M + Mp))
+    lat = (5.128122 * sen(F) + 0.280602 * sen(Mp + F) + 0.277693 * sen(Mp - F) + 0.173237 * sen(2 * D - F)
+           + 0.055413 * sen(2 * D - Mp + F) + 0.046271 * sen(2 * D - Mp - F) + 0.032573 * sen(2 * D + F)
+           + 0.017198 * sen(2 * Mp + F) + 0.009266 * sen(2 * D + Mp - F) + 0.008822 * sen(2 * Mp - F)
+           + 0.008216 * sen(2 * D - M - F) + 0.004324 * sen(2 * D - 2 * Mp - F) + 0.004200 * sen(2 * D + Mp + F)
+           - 0.003359 * sen(2 * D + M - F))
+    dist = (385000.56 - 20905.355 * cos(Mp) - 3699.111 * cos(2 * D - Mp) - 2955.968 * cos(2 * D)
+            - 569.925 * cos(2 * Mp) + 48.888 * cos(M) - 3.149 * cos(2 * F) + 246.158 * cos(2 * D - 2 * Mp)
+            - 152.138 * cos(2 * D - M - Mp) - 170.733 * cos(2 * D + Mp) - 204.586 * cos(2 * D - M)
+            - 129.620 * cos(M - Mp) + 108.743 * cos(D) + 104.755 * cos(M + Mp) + 10.321 * cos(2 * D - 2 * F)
+            + 79.661 * cos(Mp - 2 * F) - 34.782 * cos(4 * D - Mp) - 23.210 * cos(3 * Mp) - 21.636 * cos(4 * D - 2 * Mp)
+            + 24.208 * cos(2 * D + M - Mp) + 30.824 * cos(2 * D + M) - 8.379 * cos(D - Mp) - 16.675 * cos(D + M)
+            - 12.831 * cos(2 * D - M + Mp))
     return dict(lon=lon, lat=lat, dist=dist)
 
 

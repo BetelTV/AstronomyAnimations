@@ -19,6 +19,21 @@
   table.dados tr.sec td { background:#f3f6fa; font-weight:700; color: var(--cor); padding-top:6px; }
   .mini { font-size:.78rem; font-weight:400; color:#667; }
   .lado select { font-size:.8rem; }
+  dialog.mapa { width: min(1180px, 96vw); max-height: 96vh; padding: 0; border: 1px solid #2c4468; border-radius: 14px; background: #0b1426; color: #e6edf7; box-shadow: 0 20px 60px rgba(0,0,0,.6); overflow: auto; }
+  dialog.mapa::backdrop { background: rgba(3,6,15,.7); }
+  .mapaTopo { display:flex; align-items:center; justify-content:space-between; gap:12px; padding: 12px 16px 6px; }
+  .mapaTopo h2 { margin:0; font-size:1.1rem; color:#ffd27a; font-weight:600; }
+  .mapaBarra { display:flex; flex-wrap:wrap; gap:8px 18px; align-items:center; padding: 4px 16px 10px; font-size:.86rem; }
+  .mapaBarra label { display:flex; align-items:center; gap:6px; white-space:nowrap; }
+  .mapaBarra input[type=range] { width: 200px; }
+  .mapaBarra .zoom { display:flex; gap:4px; margin-left:auto; }
+  dialog.mapa button { background:#16243d; color:#e6edf7; border-color:#34507a; }
+  dialog.mapa button.prim { background:#ffb300; color:#1b1300; border-color:#ffb300; font-weight:600; }
+  #cvMapa { display:block; width: calc(100% - 32px); margin: 0 16px; border-radius: 8px; cursor: crosshair; touch-action: none; background:#08101f; }
+  .mapaRodape { display:flex; flex-wrap:wrap; justify-content:space-between; gap:6px 16px; padding: 8px 16px 0; font-size:.82rem; font-variant-numeric: tabular-nums; }
+  .mapaLeg i.lg { display:inline-block; width:11px; height:11px; border-radius:2px; vertical-align:-1px; margin: 0 3px 0 6px; }
+  .mapaLeg i.dia { background:#5d8a55; } .mapaLeg i.crep { background:#3a5547; } .mapaLeg i.noite { background:#1a2a2c; }
+  dialog.mapa p.mini { color:#9fb0c6; padding: 4px 16px 14px; margin:0; }
   @media (max-width: 1000px) {
     .principal { grid-template-columns: 1fr; }
     .principal .cena { height: 70vh; }
@@ -35,6 +50,7 @@
 <div class="barra">
   <div class="grupo">
     <label>Local <select id="local"></select></label>
+    <button id="abrirMapa" class="prim" title="Escolher o local clicando no mapa-múndi">🗺 Mapa</button>
     <label>Latitude <input id="lat" type="range" min="-90" max="90" step="0.1"><input id="latN" type="number" min="-90" max="90" step="0.1"></label>
     <label>Longitude <input id="lon" type="number" min="-180" max="180" step="0.01"></label>
     <label>Fuso (UTC) <input id="fuso" type="number" min="-12" max="14" step="0.5" style="width:56px"></label>
@@ -96,7 +112,30 @@ inteiro girar em torno do eixo que passa pelos polos celestes; a altura do polo 
 latitude e veja os caminhos do Sol se inclinarem: no equador eles são verticais, nos polos ficam paralelos ao horizonte. No modo
 <b>“mesmo horário, dia após dia”</b> o relógio fica parado e o Sol desenha o <b>analema</b>: a variação norte–sul vem da declinação
 (inclinação do eixo, 23,44°) e o desvio leste–oeste vem da equação do tempo (inclinação do eixo + excentricidade da órbita).
-As posições usam fórmulas astronômicas de baixa precisão (erro típico abaixo de 0,1° para o Sol e de cerca de 0,3° para a Lua).</p>
+As posições usam fórmulas astronômicas de baixa precisão (erro típico abaixo de 0,1° para o Sol e de cerca de 0,3° para a Lua).
+Use o botão <b>🗺 Mapa</b> para escolher qualquer ponto da Terra: o mapa mostra onde é dia e onde é noite na data e na hora escolhidas
+e os pontos onde o Sol e a Lua estão a pino (no zênite).</p>
+
+<dialog id="dlgMapa" class="mapa">
+  <div class="mapaTopo">
+    <h2>🗺 Escolha o local no mapa-múndi</h2>
+    <button id="mapaFechar" class="prim">Concluir</button>
+  </div>
+  <div class="mapaBarra">
+    <label>Data <input id="mData" type="date"></label>
+    <label>Hora local <input id="mHora" type="range" min="0" max="1439" step="1"> <b id="mHoraTxt"></b></label>
+    <label title="O fuso é estimado como longitude ÷ 15, arredondado. O fuso oficial pode ser diferente."><input type="checkbox" id="fusoAuto" checked> Ajustar o fuso pela longitude</label>
+    <span class="zoom"><button id="mMais" title="Aproximar">＋</button><button id="mMenos" title="Afastar">－</button><button id="mTudo">Mundo inteiro</button><button id="mAqui">Ir ao local</button></span>
+  </div>
+  <canvas id="cvMapa"></canvas>
+  <div class="mapaRodape">
+    <span id="mapaInfo"></span>
+    <span class="mapaLeg"><i class="lg dia"></i>dia<i class="lg crep"></i>crepúsculo<i class="lg noite"></i>noite · <span style="color:#ffd54f">☀</span> Sol a pino · <span style="color:#cfd8dc">☾</span> Lua a pino ·
+      <span style="color:#ff6b6b">━</span> Equador · <span style="color:#ffd54f">╍</span> Trópicos · <span style="color:#90caf9">╍</span> Círculos polares</span>
+  </div>
+  <p class="mini">Clique para escolher o ponto (ou clique numa cidade). Roda do mouse ou ＋/－: zoom · arrastar: mover o mapa.
+  O fuso estimado pela longitude é aproximado: confira o fuso oficial do lugar. Contornos: Natural Earth (domínio público).</p>
+</dialog>
 
 <script type="module">
 import * as THREE from "three";
@@ -104,7 +143,7 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { CSS2DRenderer, CSS2DObject } from "three/addons/renderers/CSS2DRenderer.js";
 import * as A from "./astro.js";
 
-const CFG = {"ano": 2026, "local_inicial": "São Paulo", "locais": [{"nome": "São Paulo (SP)", "lat": -23.55, "lon": -46.63, "fuso": -3}, {"nome": "Campinas (SP)", "lat": -22.91, "lon": -47.06, "fuso": -3}, {"nome": "Cuiabá (MT)", "lat": -15.6, "lon": -56.1, "fuso": -4}, {"nome": "Latitude do TCC (−11,31°)", "lat": -11.31, "lon": -56.1, "fuso": -4}, {"nome": "Macapá (Linha do Equador)", "lat": 0.03, "lon": -51.07, "fuso": -3}, {"nome": "Ubatuba (Trópico de Capricórnio)", "lat": -23.44, "lon": -45.07, "fuso": -3}, {"nome": "Porto Alegre (RS)", "lat": -30.03, "lon": -51.23, "fuso": -3}, {"nome": "Lisboa (Portugal)", "lat": 38.72, "lon": -9.14, "fuso": 0}, {"nome": "Tromsø (Círculo Polar Ártico)", "lat": 69.65, "lon": 18.96, "fuso": 1}, {"nome": "Polo Sul", "lat": -90.0, "lon": 0.0, "fuso": 0}]};
+const CFG = {"ano": 2026, "local_inicial": "São Paulo", "locais": [{"nome": "São Paulo (SP)", "lat": -23.55, "lon": -46.63, "fuso": -3}, {"nome": "Campinas (SP)", "lat": -22.91, "lon": -47.06, "fuso": -3}, {"nome": "Cuiabá (MT)", "lat": -15.6, "lon": -56.1, "fuso": -4}, {"nome": "Latitude do TCC (−11,31°)", "lat": -11.31, "lon": -56.1, "fuso": -4}, {"nome": "Macapá (Linha do Equador)", "lat": 0.03, "lon": -51.07, "fuso": -3}, {"nome": "Ubatuba (Trópico de Capricórnio)", "lat": -23.44, "lon": -45.07, "fuso": -3}, {"nome": "Porto Alegre (RS)", "lat": -30.03, "lon": -51.23, "fuso": -3}, {"nome": "Lisboa (Portugal)", "lat": 38.72, "lon": -9.14, "fuso": 0}, {"nome": "Tromsø (Círculo Polar Ártico)", "lat": 69.65, "lon": 18.96, "fuso": 1}, {"nome": "Polo Sul", "lat": -90, "lon": 0, "fuso": 0}]};
 const LOCAIS = CFG.locais || [{ nome: "São Paulo (SP)", lat: -23.55, lon: -46.63, fuso: -3 }];
 const MESES = ["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
 const MESES_L = ["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
@@ -424,6 +463,7 @@ function sincronizarControles() {
   $("data").value = `${E.ano}-${String(E.mes).padStart(2, "0")}-${String(E.dia).padStart(2, "0")}`;
   $("dia").max = bissexto(E.ano) ? 366 : 365; $("dia").value = diaDoAno(); $("hora").value = Math.floor(E.min);
   $("horaRot").textContent = A.hhmm(E.min) + " (hora local)"; $("diaRot").textContent = `${E.dia} ${MESES[E.mes - 1]} ${E.ano}`;
+  $("mData").value = $("data").value; $("mHora").value = Math.floor(E.min); $("mHoraTxt").textContent = A.hhmm(E.min);
 }
 function personalizado() { $("local").value = "-1"; }
 $("local").onchange = (e) => { if (+e.target.value >= 0) usarLocal(+e.target.value); };
@@ -443,6 +483,155 @@ for (const id of ["vEcl", "vEq", "vLuaOrb", "vDiaSol", "vAnalema", "vEstrelas", 
 $("cvDia").onclick = (ev) => { const r = ev.target.getBoundingClientRect(); const v = (ev.clientX - r.left - M_DIA.l) / (r.width - M_DIA.l - M_DIA.r) * 1440; E.min = Math.max(0, Math.min(1439, Math.round(v))); atualizarTudo(); };
 $("cvAno").onclick = (ev) => { const r = ev.target.getBoundingClientRect(); const v = (ev.clientX - r.left - M_ANO.l) / (r.width - M_ANO.l - M_ANO.r) * (cacheAno.n - 1); definirDiaDoAno(Math.max(1, Math.min(cacheAno.n, Math.round(v) + 1))); atualizarTudo(); };
 
+// ------------------------------------------------------------------ mapa-múndi para escolher o local
+const dlg = $("dlgMapa"), cvM = $("cvMapa");
+let MUNDO = null, noiteCache = { chave: "", cv: null, sub: null, subLua: null };
+const vista = { cx: 0, cy: 0, zoom: 1 };
+const ZOOM_MAX = 16;
+const grau = (v, c = 2) => `${v < 0 ? "−" : ""}${Math.abs(v).toFixed(c).replace(".", ",")}°`;
+async function abrirMapa() {
+  if (!dlg.open) dlg.showModal();
+  if (!MUNDO) { desenharMapa(); try { MUNDO = await (await fetch("vendor/mundo.json")).json(); } catch { MUNDO = []; } }
+  desenharMapa();
+}
+function dimMapa() {
+  const dpr = Math.min(devicePixelRatio, 2), w = cvM.clientWidth, h = Math.round(w / 2);
+  if (cvM.width !== Math.round(w * dpr) || cvM.height !== Math.round(h * dpr)) { cvM.width = Math.round(w * dpr); cvM.height = Math.round(h * dpr); cvM.style.height = h + "px"; }
+  const x = cvM.getContext("2d"); x.setTransform(dpr, 0, 0, dpr, 0, 0); return { x, w, h };
+}
+function limitarVista() {
+  vista.zoom = Math.max(1, Math.min(ZOOM_MAX, vista.zoom));
+  const hw = 180 / vista.zoom, hh = 90 / vista.zoom;
+  vista.cx = Math.max(-180 + hw, Math.min(180 - hw, vista.cx)); vista.cy = Math.max(-90 + hh, Math.min(90 - hh, vista.cy));
+}
+function projecao(w, h) {
+  const k = w / 360 * vista.zoom;
+  return { k, X: (lon) => w / 2 + (lon - vista.cx) * k, Y: (lat) => h / 2 - (lat - vista.cy) * k,
+           lon: (px) => vista.cx + (px - w / 2) / k, lat: (py) => vista.cy - (py - h / 2) / k };
+}
+// camada de dia/noite (0,5° por pixel), recalculada só quando o instante muda
+function camadaNoite() {
+  const jd = jdAgora(), chave = Math.round(jd * 1440);
+  if (noiteCache.chave === chave) return noiteCache;
+  const d = A.dJ2000(jd), s = A.sol(d), l = A.lua(d), le = A.eclParaEq(l.lon, l.lat, s.eps), gmst = A.tempoSideral(d, 0);
+  const sub = { lat: s.dec, lon: A.norm180(s.ra - gmst) }, subLua = { lat: le.dec, lon: A.norm180(le.ra - gmst) };
+  const W = 720, H = 360, cv = noiteCache.cv || Object.assign(document.createElement("canvas"), { width: W, height: H });
+  const x = cv.getContext("2d"), img = x.createImageData(W, H), px = img.data;
+  const sd = Math.sin(sub.lat * A.RAD), cd = Math.cos(sub.lat * A.RAD);
+  const cosH = Float32Array.from({ length: W }, (_, i) => Math.cos(((-180 + (i + 0.5) / 2) - sub.lon) * A.RAD));
+  for (let j = 0; j < H; j++) {
+    const lat = (90 - (j + 0.5) / 2) * A.RAD, a = Math.sin(lat) * sd, b = Math.cos(lat) * cd;
+    for (let i = 0; i < W; i++) {
+      const alt = Math.asin(Math.max(-1, Math.min(1, a + b * cosH[i]))) * A.DEG;
+      const op = alt > 0.8 ? 0 : alt > -0.8 ? 0.22 : alt > -18 ? 0.3 + 0.38 * (-alt / 18) : 0.7;
+      const p = (j * W + i) * 4; px[p] = 4; px[p + 1] = 8; px[p + 2] = 26; px[p + 3] = op * 255;
+    }
+  }
+  x.putImageData(img, 0, 0);
+  noiteCache = { chave, cv, sub, subLua };
+  return noiteCache;
+}
+function desenharMapa() {
+  if (!dlg.open) return;
+  const { x, w, h } = dimMapa(), p = projecao(w, h), k = p.k;
+  x.clearRect(0, 0, w, h);
+  x.fillStyle = "#1b3a5c"; x.fillRect(p.X(-180), p.Y(90), 360 * k, 180 * k);
+  // países
+  if (MUNDO) {
+    x.beginPath();
+    for (const [, aneis] of MUNDO) for (const a of aneis) { x.moveTo(p.X(a[0]), p.Y(a[1])); for (let i = 2; i < a.length; i += 2) x.lineTo(p.X(a[i]), p.Y(a[i + 1])); x.closePath(); }
+    x.fillStyle = "#5d8a55"; x.fill("evenodd");
+    x.strokeStyle = "rgba(235,245,230,.45)"; x.lineWidth = 0.6; x.stroke();
+  } else { x.fillStyle = "#cfd8e3"; x.font = "14px system-ui"; x.textAlign = "center"; x.fillText("Carregando o mapa…", w / 2, h / 2); }
+  // dia e noite
+  const nc = camadaNoite();
+  x.imageSmoothingEnabled = true; x.drawImage(nc.cv, p.X(-180), p.Y(90), 360 * k, 180 * k);
+  // grade e linhas notáveis
+  const passo = vista.zoom >= 6 ? 5 : vista.zoom >= 2.5 ? 10 : 30;
+  x.strokeStyle = "rgba(255,255,255,.13)"; x.lineWidth = 1; x.beginPath();
+  for (let lo = -180; lo <= 180; lo += passo) { x.moveTo(p.X(lo), p.Y(90)); x.lineTo(p.X(lo), p.Y(-90)); }
+  for (let la = -90; la <= 90; la += passo) { x.moveTo(p.X(-180), p.Y(la)); x.lineTo(p.X(180), p.Y(la)); }
+  x.stroke();
+  const paralelo = (lat, cor, traco, txt) => { x.strokeStyle = cor; x.lineWidth = 1.4; x.setLineDash(traco); x.beginPath(); x.moveTo(p.X(-180), p.Y(lat)); x.lineTo(p.X(180), p.Y(lat)); x.stroke(); x.setLineDash([]);
+    x.fillStyle = cor; x.font = "10px system-ui"; x.textAlign = "left"; x.fillText(txt, Math.max(4, p.X(-180) + 4), p.Y(lat) - 3); };
+  paralelo(0, "#ff6b6b", [], "Equador");
+  paralelo(23.44, "#ffd54f", [6, 4], "Trópico de Câncer"); paralelo(-23.44, "#ffd54f", [6, 4], "Trópico de Capricórnio");
+  paralelo(66.56, "#90caf9", [6, 4], "Círculo Polar Ártico"); paralelo(-66.56, "#90caf9", [6, 4], "Círculo Polar Antártico");
+  // rótulos de longitude/latitude na borda
+  x.fillStyle = "rgba(230,240,255,.75)"; x.font = "10px system-ui"; x.textAlign = "center";
+  for (let lo = -180 + passo; lo < 180; lo += passo) { const px = p.X(lo); if (px > 20 && px < w - 20) x.fillText(`${Math.abs(lo)}°${lo < 0 ? "O" : lo > 0 ? "L" : ""}`, px, h - 4); }
+  x.textAlign = "right";
+  for (let la = -90 + passo; la < 90; la += passo) { const py = p.Y(la); if (py > 12 && py < h - 14) x.fillText(`${Math.abs(la)}°${la < 0 ? "S" : la > 0 ? "N" : ""}`, w - 4, py - 2); }
+  // Sol e Lua a pino
+  const astro = (pt, cor, simb) => { const px = p.X(pt.lon), py = p.Y(pt.lat);
+    x.fillStyle = cor; x.strokeStyle = "#000"; x.lineWidth = 1; x.beginPath(); x.arc(px, py, 7, 0, Math.PI * 2); x.fill(); x.stroke();
+    x.fillStyle = "#000"; x.font = "bold 10px system-ui"; x.textAlign = "center"; x.fillText(simb, px, py + 3.5); };
+  astro(nc.sub, "#ffd54f", "☀"); astro(nc.subLua, "#cfd8dc", "☾");
+  // cidades da lista
+  x.font = "11px system-ui"; x.textAlign = "left";
+  LOCAIS.forEach((c) => { const px = p.X(c.lon), py = p.Y(c.lat); x.fillStyle = "#fff"; x.strokeStyle = "#000"; x.lineWidth = 1;
+    x.beginPath(); x.arc(px, py, 3, 0, Math.PI * 2); x.fill(); x.stroke();
+    x.lineWidth = 3; x.strokeStyle = "rgba(0,0,0,.7)"; x.strokeText(c.nome, px + 6, py + 4); x.fillStyle = "#fff"; x.fillText(c.nome, px + 6, py + 4); });
+  // local escolhido
+  const ex = p.X(E.lon), ey = p.Y(E.lat);
+  x.strokeStyle = "rgba(255,82,82,.6)"; x.lineWidth = 1; x.setLineDash([4, 4]); x.beginPath(); x.moveTo(0, ey); x.lineTo(w, ey); x.moveTo(ex, 0); x.lineTo(ex, h); x.stroke(); x.setLineDash([]);
+  x.fillStyle = "#ff5252"; x.strokeStyle = "#fff"; x.lineWidth = 2; x.beginPath(); x.arc(ex, ey, 6, 0, Math.PI * 2); x.fill(); x.stroke();
+  // escala do zoom
+  x.fillStyle = "rgba(230,240,255,.8)"; x.font = "11px system-ui"; x.textAlign = "left"; x.fillText(`zoom ${vista.zoom.toFixed(1).replace(".", ",")}×`, 8, 16);
+  mostrarInfoMapa();
+}
+let mapaCursor = null;
+function mostrarInfoMapa() {
+  const sel = `<b style="color:#ff8a80">Local:</b> ${grau(E.lat)} , ${grau(E.lon)} · UTC${E.fuso >= 0 ? "+" : "−"}${Math.abs(E.fuso)}`;
+  const cur = mapaCursor ? ` &nbsp;·&nbsp; <span style="color:#9fb0c6">cursor: ${grau(mapaCursor.lat)} , ${grau(mapaCursor.lon)}</span>` : "";
+  $("mapaInfo").innerHTML = sel + cur;
+}
+function posMapa(ev) { const r = cvM.getBoundingClientRect(), p = projecao(r.width, r.width / 2), px = ev.clientX - r.left, py = ev.clientY - r.top;
+  return { px, py, p, lon: p.lon(px), lat: p.lat(py) }; }
+function cidadePerto(m) { let melhor = -1, dmin = 9; LOCAIS.forEach((c, i) => { const d = Math.hypot(m.p.X(c.lon) - m.px, m.p.Y(c.lat) - m.py); if (d < dmin) { dmin = d; melhor = i; } }); return melhor; }
+function escolherNoMapa(m) {
+  if (m.lat < -90 || m.lat > 90 || m.lon < -180 || m.lon > 180) return;
+  const i = cidadePerto(m);
+  if (i >= 0) { $("local").value = i; usarLocal(i); return; }
+  E.lat = Math.round(m.lat * 100) / 100; E.lon = Math.round(m.lon * 100) / 100;
+  if ($("fusoAuto").checked) E.fuso = Math.max(-12, Math.min(14, Math.round(E.lon / 15)));
+  personalizado(); atualizarTudo();
+}
+function zoomMapa(fator, px, py) {
+  const r = cvM.getBoundingClientRect(), w = r.width, h = w / 2;
+  if (px === undefined) { px = w / 2; py = h / 2; }
+  const p0 = projecao(w, h), lon0 = p0.lon(px), lat0 = p0.lat(py);
+  vista.zoom *= fator; limitarVista();
+  const k = w / 360 * vista.zoom; vista.cx = lon0 - (px - w / 2) / k; vista.cy = lat0 + (py - h / 2) / k; limitarVista();
+  desenharMapa();
+}
+let arrasto = null;
+cvM.addEventListener("pointerdown", (ev) => { cvM.setPointerCapture(ev.pointerId); arrasto = { x: ev.clientX, y: ev.clientY, moveu: false }; });
+cvM.addEventListener("pointermove", (ev) => {
+  const m = posMapa(ev);
+  mapaCursor = (m.lat >= -90 && m.lat <= 90 && m.lon >= -180 && m.lon <= 180) ? m : null;
+  if (arrasto) {
+    const dx = ev.clientX - arrasto.x, dy = ev.clientY - arrasto.y;
+    if (arrasto.moveu || Math.hypot(dx, dy) > 4) {
+      arrasto.moveu = true; vista.cx -= dx / m.p.k; vista.cy += dy / m.p.k; limitarVista();
+      arrasto.x = ev.clientX; arrasto.y = ev.clientY; cvM.style.cursor = "grabbing"; desenharMapa(); return;
+    }
+  }
+  cvM.style.cursor = cidadePerto(m) >= 0 ? "pointer" : "crosshair";
+  mostrarInfoMapa();
+});
+cvM.addEventListener("pointerup", (ev) => { if (arrasto && !arrasto.moveu) escolherNoMapa(posMapa(ev)); arrasto = null; cvM.style.cursor = "crosshair"; });
+cvM.addEventListener("pointerleave", () => { mapaCursor = null; mostrarInfoMapa(); });
+cvM.addEventListener("wheel", (ev) => { ev.preventDefault(); const m = posMapa(ev); zoomMapa(ev.deltaY < 0 ? 1.25 : 0.8, m.px, m.py); }, { passive: false });
+$("abrirMapa").onclick = abrirMapa;
+$("mapaFechar").onclick = () => dlg.close();
+$("mMais").onclick = () => zoomMapa(1.5); $("mMenos").onclick = () => zoomMapa(1 / 1.5);
+$("mTudo").onclick = () => { Object.assign(vista, { cx: 0, cy: 0, zoom: 1 }); desenharMapa(); };
+$("mAqui").onclick = () => { Object.assign(vista, { cx: E.lon, cy: E.lat, zoom: Math.max(vista.zoom, 4) }); limitarVista(); desenharMapa(); };
+$("mData").onchange = (e) => { const [a, m, d] = e.target.value.split("-").map(Number); if (a) { Object.assign(E, { ano: a, mes: m, dia: d }); atualizarTudo(); } };
+$("mHora").oninput = (e) => { E.min = +e.target.value; atualizarTudo(); };
+addEventListener("resize", () => desenharMapa());
+
 let camModo = "fora";
 function camFora() { camModo = "fora"; boneco.visible = true; controls.minDistance = 2; controls.maxDistance = 80; controls.target.set(0, 1.5, 0); camera.position.set(15, 11, 19); camera.fov = 50; camera.updateProjectionMatrix(); }
 function camOlho() { camModo = "olho"; boneco.visible = false; sombraG.visible = false; controls.minDistance = 0.01; controls.maxDistance = 0.02;
@@ -452,7 +641,7 @@ $("camFora").onclick = camFora; $("camOlho").onclick = camOlho;
 
 let ultimoPainel = 0;
 function atualizarPainel(forcar) { const agora = performance.now(); if (!forcar && agora - ultimoPainel < 80) return; ultimoPainel = agora;
-  atualizarTabela(); graficoDia(); graficoAno(); graficoAnalema(); }
+  atualizarTabela(); graficoDia(); graficoAno(); graficoAnalema(); desenharMapa(); }
 function atualizarTudo() { sincronizarControles(); atualizarCena(); atualizarPainel(true); }
 
 function redimensionar() { const w = cena.clientWidth, h = cena.clientHeight; renderer.setSize(w, h); rot.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix(); if (P) atualizarPainel(true); }

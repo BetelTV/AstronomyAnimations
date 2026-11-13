@@ -25,7 +25,11 @@
   </div>
   <div class="grupo">
     <span>Câmera:</span>
-    <button id="camGeral">Visão geral</button><button id="camTopo">De cima</button><button id="camTerra">Seguir a Terra</button>
+    <button id="camGeral">Visão geral</button><button id="camTopo">De cima</button><button id="camTerra">Seguir a Terra</button><button id="camLado" title="Câmera de lado para a linha Sol–Terra: mostra a sombra passando acima ou abaixo">Alinhamento</button>
+  </div>
+  <div class="grupo">
+    <label title="Desenha a umbra e a penumbra da Terra e da Lua. Terra e Lua passam a ter o tamanho real em relação à distância entre elas."><input type="checkbox" id="vSombras"> <b>Cones de sombra (eclipses)</b></label>
+    <button id="eclAnt" title="Eclipse anterior">◀ Eclipse</button><button id="eclProx" title="Próximo eclipse (solar ou lunar)">Eclipse ▶</button>
   </div>
   <div class="grupo">
     <label><input type="checkbox" id="vPlano" checked> Plano da eclíptica</label>
@@ -39,14 +43,25 @@
 </div>
 <div class="tempo">
   <span class="rotulo" id="dataRot">1 jan 2026</span>
-  <input id="dia" type="range" min="0" max="365" step="1" value="0">
-  <span>dia <b id="diaN">0</b> de 365</span>
+  <button id="menosH" title="Voltar 1 hora">−1 h</button>
+  <input id="dia" type="range" min="0" max="365" step="any" value="0">
+  <button id="maisH" title="Avançar 1 hora">+1 h</button>
+  <span>dia <b id="diaN">0</b> de <span id="diaMax">365</span></span>
 </div>
 
 <div class="cena" id="cena">
   <div class="info" id="info"></div>
   <canvas id="faseCv" width="110" height="130" style="position:absolute; top:10px; right:10px; background:rgba(10,20,40,.72); border-radius:9px;"></canvas>
-  <div class="legenda">Arraste para girar · roda do mouse para aproximar · botão direito para deslocar. Tamanhos e distância Terra–Lua fora de escala.</div>
+  <div class="legenda" id="legenda">Arraste para girar · roda do mouse para aproximar · botão direito para deslocar. Tamanhos e distância Terra–Lua fora de escala.</div>
+  <div class="legSombras" id="legSombras" hidden>
+    <b>Cones de sombra</b>
+    <span><i style="background:#ff5a5a"></i>umbra da Lua (eclipse solar total)</span>
+    <span><i style="background:#ffb3a8"></i>penumbra da Lua (eclipse solar parcial)</span>
+    <span><i style="background:#ffd54f"></i>antumbra da Lua (eclipse anular)</span>
+    <span><i style="background:#3d8bff"></i>umbra da Terra (eclipse lunar total)</span>
+    <span><i style="background:#a8d1ff"></i>penumbra da Terra (eclipse penumbral)</span>
+    <small>Terra e Lua em tamanho real em relação à distância entre elas; Sol fora de escala.</small>
+  </div>
 </div>
 
 <p class="nota"><b>Como ler o modelo:</b> o Sol ilumina a Terra e a Lua de verdade (a metade escura é a noite), então as fases
@@ -55,6 +70,12 @@ cada hemisfério recebe mais luz em uma metade do ano: são as estações. A ór
 cruza o plano da órbita da Terra nos <b>nodos</b> (☊ e ☋). Só há eclipse quando uma Lua nova ou cheia ocorre perto da linha dos nodos;
 a linha dos nodos gira lentamente (uma volta a cada 18,6 anos). As posições do Sol e da Lua vêm de fórmulas astronômicas reais, por isso
 os alertas de eclipse coincidem com as datas reais do ano escolhido.</p>
+<p class="nota"><b>Cones de sombra:</b> ao ligar esta opção, a Terra e a Lua passam a ter o tamanho real em relação à distância entre elas
+(a Terra fica bem pequena!) e cada uma projeta sua <b>umbra</b> (sombra total, que se estreita até um vértice) e sua <b>penumbra</b>
+(sombra parcial, que se alarga). Os cones são calculados com os tamanhos e as distâncias reais do Sol, da Terra e da Lua. Em quase toda
+Lua nova a sombra da Lua passa <b>acima ou abaixo</b> da Terra, e em quase toda Lua cheia a Lua passa acima ou abaixo da sombra da Terra:
+por isso não há eclipse todo mês. Use a câmera <b>Alinhamento</b> e os botões <b>Eclipse ◀ ▶</b> para ir direto aos eclipses do ano.
+Quando a umbra da Lua não alcança a Terra (Lua mais longe), o vértice fica antes da Terra e o eclipse é <b>anular</b>.</p>
 
 <script type="module">
 import * as THREE from "three";
@@ -62,14 +83,14 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { CSS2DRenderer, CSS2DObject } from "three/addons/renderers/CSS2DRenderer.js";
 import * as A from "./astro.js";
 
-const CFG = {"ano": 2026, "local_inicial": "São Paulo", "locais": [{"nome": "São Paulo (SP)", "lat": -23.55, "lon": -46.63, "fuso": -3}, {"nome": "Campinas (SP)", "lat": -22.91, "lon": -47.06, "fuso": -3}, {"nome": "Cuiabá (MT)", "lat": -15.6, "lon": -56.1, "fuso": -4}, {"nome": "Latitude do TCC (−11,31°)", "lat": -11.31, "lon": -56.1, "fuso": -4}, {"nome": "Macapá (Linha do Equador)", "lat": 0.03, "lon": -51.07, "fuso": -3}, {"nome": "Ubatuba (Trópico de Capricórnio)", "lat": -23.44, "lon": -45.07, "fuso": -3}, {"nome": "Porto Alegre (RS)", "lat": -30.03, "lon": -51.23, "fuso": -3}, {"nome": "Lisboa (Portugal)", "lat": 38.72, "lon": -9.14, "fuso": 0}, {"nome": "Tromsø (Círculo Polar Ártico)", "lat": 69.65, "lon": 18.96, "fuso": 1}, {"nome": "Polo Sul", "lat": -90.0, "lon": 0.0, "fuso": 0}]};
+const CFG = {"ano": 2026, "local_inicial": "São Paulo", "locais": [{"nome": "São Paulo (SP)", "lat": -23.55, "lon": -46.63, "fuso": -3}, {"nome": "Campinas (SP)", "lat": -22.91, "lon": -47.06, "fuso": -3}, {"nome": "Cuiabá (MT)", "lat": -15.6, "lon": -56.1, "fuso": -4}, {"nome": "Latitude do TCC (−11,31°)", "lat": -11.31, "lon": -56.1, "fuso": -4}, {"nome": "Macapá (Linha do Equador)", "lat": 0.03, "lon": -51.07, "fuso": -3}, {"nome": "Ubatuba (Trópico de Capricórnio)", "lat": -23.44, "lon": -45.07, "fuso": -3}, {"nome": "Porto Alegre (RS)", "lat": -30.03, "lon": -51.23, "fuso": -3}, {"nome": "Lisboa (Portugal)", "lat": 38.72, "lon": -9.14, "fuso": 0}, {"nome": "Tromsø (Círculo Polar Ártico)", "lat": 69.65, "lon": 18.96, "fuso": 1}, {"nome": "Polo Sul", "lat": -90, "lon": 0, "fuso": 0}]};
 const UA = 12, R_ORB_LUA = 2.6, R_TERRA = 0.5, R_LUA = 0.17, R_SOL = 1.5;
 const MESES = ["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
 const $ = (id) => document.getElementById(id);
 
 // --- cena ---
 const cena = $("cena");
-const renderer = new THREE.WebGLRenderer({ antialias: true });
+const renderer = new THREE.WebGLRenderer({ antialias: true, logarithmicDepthBuffer: true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 cena.prepend(renderer.domElement);
 const rot = new CSS2DRenderer();
@@ -77,7 +98,7 @@ rot.domElement.style.position = "absolute"; rot.domElement.style.top = "0"; rot.
 cena.appendChild(rot.domElement);
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x02040c);
-const camera = new THREE.PerspectiveCamera(45, 1, 0.05, 2000);
+const camera = new THREE.PerspectiveCamera(45, 1, 0.002, 2000);
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 
@@ -164,8 +185,76 @@ const rNA = rotulo("☊", "#ff8fb3"), rND = rotulo("☋", "#ff8fb3"); scene.add(
 for (const [lonSol, txt] of [[0,"Equinócio de março"],[90,"Solstício de junho"],[180,"Equinócio de setembro"],[270,"Solstício de dezembro"]]) {
   const r = rotulo(txt, "#90caf9"); r.element.style.fontSize = "11px"; r.element.style.fontWeight = "400"; r.position.copy(eclVec(lonSol + 180, 0, UA * 1.13)); scene.add(r); }
 
+// --- cones de sombra (umbra e penumbra) em escala real Terra–Lua ---
+// No modo de sombras, Terra e Lua têm o tamanho real em relação à distância entre elas (a escala do modelo normal
+// exagera os tamanhos ~14×, o que faria a sombra atingir a Terra em toda Lua nova). Os ângulos dos cones vêm dos
+// tamanhos e distâncias reais do Sol, da Terra e da Lua; o Sol desenhado continua fora de escala.
+const KM = R_ORB_LUA / 384400;                       // unidades da cena por km
+const RT_KM = 6371, RL_KM = 1737.4, RS_KM = 696000, UA_KM = 149597870.7;
+const F_TERRA = RT_KM * KM / R_TERRA, F_LUA = RL_KM * KM / R_LUA;
+const matSombra = (cor, opac) => new THREE.MeshBasicMaterial({ color: cor, transparent: true, opacity: opac, side: THREE.DoubleSide, depthWrite: false });
+const cones = {
+  penumbraTerra: new THREE.Mesh(new THREE.BufferGeometry(), matSombra(0xa8d1ff, 0.09)),
+  umbraTerra: new THREE.Mesh(new THREE.BufferGeometry(), matSombra(0x3d8bff, 0.32)),
+  penumbraLua: new THREE.Mesh(new THREE.BufferGeometry(), matSombra(0xffb3a8, 0.14)),
+  umbraLua: new THREE.Mesh(new THREE.BufferGeometry(), matSombra(0xff5a5a, 0.6)),
+  antumbraLua: new THREE.Mesh(new THREE.BufferGeometry(), matSombra(0xffd54f, 0.5)),
+};
+const grupoSombras = new THREE.Group(); grupoSombras.visible = false; scene.add(grupoSombras);
+Object.values(cones).forEach((c, i) => { c.frustumCulled = false; c.renderOrder = i; grupoSombras.add(c); });
+const EIXO_Y = new THREE.Vector3(0, 1, 0);
+// tronco de cone: raio r0 na origem, r1 no fim, comprimento L (tudo em km), ao longo de dir
+function cone(mesh, origem, dir, r0, r1, L) {
+  mesh.geometry.dispose();
+  mesh.geometry = new THREE.CylinderGeometry(Math.max(0, r1) * KM, Math.max(0, r0) * KM, Math.max(L, 1) * KM, 64, 1, true);
+  mesh.position.copy(origem).addScaledVector(dir, L * KM / 2);
+  mesh.quaternion.setFromUnitVectors(EIXO_Y, dir);
+}
+const fmt = (x, c = 1) => x.toLocaleString("pt-BR", { minimumFractionDigits: c, maximumFractionDigits: c });
+
+// geometria real (km, centro na Terra) das sombras da Terra e da Lua
+function geometriaEclipse(d) {
+  const s = A.sol(d), l = A.lua(d);
+  const S = eclVec(s.lon, 0, s.R * UA_KM);            // Sol visto da Terra
+  const M = eclVec(l.lon, l.lat, l.dist);             // Lua vista da Terra
+  // sombra da Lua (eclipse solar)
+  const u = M.clone().sub(S), Dm = u.length(); u.normalize();
+  const auL = Math.asin((RS_KM - RL_KM) / Dm), apL = Math.asin((RS_KM + RL_KM) / Dm);
+  const vertL = RL_KM / Math.tan(auL);                // comprimento da umbra da Lua (~374 mil km)
+  const tL = -M.dot(u);                               // da Lua até o ponto do eixo da sombra mais próximo da Terra
+  const pertoL = M.clone().addScaledVector(u, tL);
+  const gama = pertoL.length() / RT_KM;               // distância do eixo ao centro da Terra, em raios terrestres
+  const rPenL = RL_KM + tL * Math.tan(apL);
+  const rUmbSup = RL_KM - (tL - RT_KM) * Math.tan(auL); // > 0: umbra chega à superfície (total); < 0: anular
+  let solar = null;
+  if (tL > 0 && gama * RT_KM < RT_KM + rPenL) solar = gama < 1 ? (rUmbSup > 0 ? "total" : "anular") : "parcial";
+  // sombra da Terra (eclipse lunar)
+  const v = S.clone().negate().normalize(), D = S.length();
+  const auT = Math.asin((RS_KM - RT_KM) / D), apT = Math.asin((RS_KM + RT_KM) / D);
+  const vertT = RT_KM / Math.tan(auT);                // comprimento da umbra da Terra (~1,38 milhão de km)
+  const tT = M.dot(v), perpT = M.clone().addScaledVector(v, -tT), afast = perpT.length();
+  const rUmbT = RT_KM - tT * Math.tan(auT), rPenT = RT_KM + tT * Math.tan(apT);
+  let lunar = null;
+  if (tT > 0) {
+    if (afast + RL_KM < rUmbT) lunar = "total";
+    else if (afast - RL_KM < rUmbT) lunar = "parcial";
+    else if (afast - RL_KM < rPenT) lunar = "penumbral";
+  }
+  return { s, l, u, v, auL, apL, vertL, tL, pertoL, gama, rPenL, solar, auT, apT, vertT, tT, perpT, afast, rUmbT, rPenT, lunar };
+}
+
+function textoEclipse(g) {
+  const f = A.faseLua(g.s, g.l), sepNova = Math.min(f.dl, 360 - f.dl), sepCheia = Math.abs(f.dl - 180);
+  if (g.solar) return `<span class="eclipse">☀ ECLIPSE SOLAR ${g.solar.toUpperCase()}</span>: a ${g.solar === "parcial" ? "penumbra" : g.solar === "total" ? "umbra" : "antumbra"} da Lua atinge a Terra`;
+  if (g.lunar) return `<span class="eclipse">☾ ECLIPSE LUNAR ${g.lunar.toUpperCase()}</span>: a Lua entra na ${g.lunar === "penumbral" ? "penumbra" : "umbra"} da Terra`;
+  if (sepNova < 30) return `Lua nova: a sombra da Lua passa ${fmt(g.gama - 1)} raio(s) terrestre(s) ${g.pertoL.y >= 0 ? "ao norte" : "ao sul"} da Terra → <b>sem eclipse</b>`;
+  if (sepCheia < 30) return `Lua cheia: a Lua passa ${fmt(g.afast / RT_KM)} raios terrestres ${g.perpT.y >= 0 ? "ao norte" : "ao sul"} do centro da sombra da Terra (umbra com raio de ${fmt(g.rUmbT / RT_KM, 2)}) → <b>sem eclipse</b>`;
+  return "Lua longe da fase nova ou cheia: não há alinhamento para eclipse";
+}
+
 // --- estado ---
-let ano = 2026, t = 0, tocando = false, seguir = false, exag = 1;
+let ano = 2026, t = 0, tocando = false, seguir = false, exag = 1, sombras = false;
+const alvoDesl = new THREE.Vector3(); // deslocamento do alvo da câmera em relação à Terra (quando a segue)
 const jd0 = () => A.jdLocal(ano, 1, 1, 0, 0);
 const diasNoAno = () => ((ano % 4 === 0 && ano % 100 !== 0) || ano % 400 === 0) ? 366 : 365;
 
@@ -192,42 +281,68 @@ function estacaoSul(lonSol) { return ["outono", "inverno", "primavera", "verão"
 
 function atualizar() {
   const d = A.dJ2000(jd0() + t);
-  const s = A.sol(d), l = A.lua(d);
+  const g = geometriaEclipse(d), s = g.s, l = g.l;
   const pT = eclVec(s.lon + 180, 0, s.R * UA);
   const anterior = terra.position.clone();
   terra.position.copy(pT);
-  if (seguir) { camera.position.add(pT.clone().sub(anterior)); controls.target.copy(pT); }
+  if (seguir) { camera.position.add(pT.clone().sub(anterior)); controls.target.copy(pT).add(alvoDesl); }
   // rotação da Terra (tempo sideral)
   globo.rotation.y = $("vGirar").checked ? A.tempoSideral(d, 0) * A.RAD + Math.PI : Math.PI;
-  // Lua: inclinação visual (com exagero opcional) a partir do nodo
-  const inc = Math.asin(Math.min(1, Math.sin(5.145 * A.RAD) * exag)) * A.DEG;
+  // tamanhos: normal (fora de escala) ou real Terra–Lua (modo de sombras)
+  const fT = sombras ? F_TERRA : 1, fL = sombras ? F_LUA : 1;
+  inclinacao.scale.setScalar(fT); perp.scale.setScalar(fT); lua.scale.setScalar(fL);
+  rTerra.position.y = -R_TERRA * fT - (sombras ? 0.05 : 0.35);
+  // Lua: inclinação visual (com exagero opcional) a partir do nodo; no modo de sombras, posição real (latitude e distância)
+  const inc = Math.asin(Math.min(1, Math.sin(5.145 * A.RAD) * (sombras ? 1 : exag))) * A.DEG;
+  const rOrb = sombras ? l.dist * KM : R_ORB_LUA;
   const u = l.lon - l.no; // argumento de latitude aproximado
-  const latVis = Math.asin(Math.sin(inc * A.RAD) * Math.sin(u * A.RAD)) * A.DEG;
-  lua.position.copy(pT).add(eclVec(l.lon, latVis, R_ORB_LUA));
+  const latVis = sombras ? l.lat : Math.asin(Math.sin(inc * A.RAD) * Math.sin(u * A.RAD)) * A.DEG;
+  lua.position.copy(pT).add(eclVec(l.lon, latVis, rOrb));
   lua.rotation.y = (l.lon) * A.RAD; // mesma face voltada para a Terra
   const pts = [];
   for (let i = 0; i <= 180; i++) { const uu = i * 2; const lo = l.no + Math.atan2(Math.cos(inc*A.RAD) * Math.sin(uu*A.RAD), Math.cos(uu*A.RAD)) * A.DEG;
-    const la = Math.asin(Math.sin(inc*A.RAD) * Math.sin(uu*A.RAD)) * A.DEG; pts.push(pT.clone().add(eclVec(lo, la, R_ORB_LUA))); }
+    const la = Math.asin(Math.sin(inc*A.RAD) * Math.sin(uu*A.RAD)) * A.DEG; pts.push(pT.clone().add(eclVec(lo, la, rOrb))); }
   definir(orbLua, pts);
-  definir(linNodos, [pT.clone().add(eclVec(l.no, 0, R_ORB_LUA * 1.35)), pT.clone().add(eclVec(l.no + 180, 0, R_ORB_LUA * 1.35))]);
-  rNA.position.copy(pT).add(eclVec(l.no, 0, R_ORB_LUA * 1.45)); rND.position.copy(pT).add(eclVec(l.no + 180, 0, R_ORB_LUA * 1.45));
+  definir(linNodos, [pT.clone().add(eclVec(l.no, 0, rOrb * 1.35)), pT.clone().add(eclVec(l.no + 180, 0, rOrb * 1.35))]);
+  rNA.position.copy(pT).add(eclVec(l.no, 0, rOrb * 1.45)); rND.position.copy(pT).add(eclVec(l.no + 180, 0, rOrb * 1.45));
   definir(linSolTerra, [new THREE.Vector3(), pT]);
+  // cones de sombra
+  if (sombras) {
+    const pL = lua.position;
+    // Lua: a umbra e a penumbra param na Terra quando a atingem
+    const atinge = g.tL > 0 && g.gama < 1, entrada = atinge ? g.tL - RT_KM * Math.sqrt(1 - g.gama * g.gama) : null;
+    const lUmb = atinge ? Math.min(g.vertL, entrada) : g.vertL;
+    cone(cones.umbraLua, pL, g.u, RL_KM, RL_KM - lUmb * Math.tan(g.auL), lUmb);
+    const lPen = g.tL > 0 ? (atinge ? entrada : g.tL + 2 * RT_KM) : l.dist * 1.1;
+    cone(cones.penumbraLua, pL, g.u, RL_KM, RL_KM + lPen * Math.tan(g.apL), lPen);
+    const fimAnt = atinge ? entrada : g.tL + 2 * RT_KM;
+    cones.antumbraLua.visible = g.tL > 0 && fimAnt > g.vertL;
+    if (cones.antumbraLua.visible) cone(cones.antumbraLua, pL.clone().addScaledVector(g.u, g.vertL * KM), g.u, 0, (fimAnt - g.vertL) * Math.tan(g.auL), fimAnt - g.vertL);
+    // Terra
+    cone(cones.umbraTerra, pT, g.v, RT_KM, 0, g.vertT);
+    const lPenT = 1.3 * 384400;
+    cone(cones.penumbraTerra, pT, g.v, RT_KM, RT_KM + lPenT * Math.tan(g.apT), lPenT);
+  }
+  // Lua avermelhada/escurecida durante eclipses lunares
+  lua.material.color.set(g.lunar === "total" ? 0xc4532f : g.lunar === "parcial" ? 0x8f8580 : g.lunar === "penumbral" ? 0xc9c4bd : 0xffffff);
   // informações
   const f = A.faseLua(s, l);
   const data = new Date((jd0() + t - 2440587.5) * 864e5);
   const dataTxt = `${data.getUTCDate()} ${MESES[data.getUTCMonth()]} ${data.getUTCFullYear()}`;
-  $("dataRot").textContent = dataTxt;
+  const horaTxt = `${String(data.getUTCHours()).padStart(2, "0")}h${String(data.getUTCMinutes()).padStart(2, "0")} UTC`;
+  $("dataRot").textContent = `${dataTxt} · ${horaTxt}`;
   let alerta = "";
   const sizigia = Math.min(f.dl, 360 - f.dl) < 13 ? "solar" : Math.abs(f.dl - 180) < 13 ? "lunar" : "";
   if (sizigia && Math.abs(l.lat) < 1.4) alerta = `<br><span class="alerta">⚠ Lua ${sizigia === "solar" ? "nova" : "cheia"} perto do nodo: época de ECLIPSE ${sizigia.toUpperCase()}</span>`;
-  $("info").innerHTML = `<b>${dataTxt}</b> · dia ${Math.floor(t)}<br>
+  $("info").innerHTML = `<b>${dataTxt}</b> · ${horaTxt} · dia ${Math.floor(t)}<br>
     Estação no hemisfério sul: <b>${estacaoSul(s.lon)}</b><br>
     Longitude do Sol na eclíptica: ${s.lon.toFixed(1)}° · declinação ${s.dec >= 0 ? "+" : ""}${s.dec.toFixed(1)}°<br>
     Distância Terra–Sol: ${(s.R * 149.6).toFixed(2)} milhões de km<br>
     Lua: ${f.nome} (${Math.round(f.ilum * 100)}%) · latitude eclíptica ${l.lat >= 0 ? "+" : ""}${l.lat.toFixed(2)}°<br>
-    Distância Terra–Lua: ${Math.round(l.dist).toLocaleString("pt-BR")} km${alerta}`;
+    Distância Terra–Lua: ${Math.round(l.dist).toLocaleString("pt-BR")} km${alerta}<br>
+    <span style="display:block; margin-top:4px; padding-top:4px; border-top:1px solid rgba(255,255,255,.2)">${textoEclipse(g)}</span>`;
   faseDesenho(f);
-  if (!arrastando) { $("dia").value = Math.floor(t); }
+  if (!arrastando) { $("dia").value = t; }
   $("diaN").textContent = Math.floor(t);
 }
 
@@ -236,15 +351,62 @@ let arrastando = false;
 $("dia").addEventListener("input", (e) => { arrastando = true; t = +e.target.value; atualizar(); });
 $("dia").addEventListener("change", () => { arrastando = false; });
 $("play").onclick = () => { tocando = !tocando; $("play").textContent = tocando ? "⏸ Pausar" : "▶ Reproduzir"; };
-$("ano").addEventListener("change", (e) => { ano = Math.max(1900, Math.min(2100, +e.target.value || 2026)); $("dia").max = diasNoAno(); t = Math.min(t, diasNoAno()); desenharOrbitaTerra(); atualizar(); });
+function mudarAno(a) { ano = Math.max(1900, Math.min(2100, a || 2026)); $("ano").value = ano; $("dia").max = diasNoAno(); $("diaMax").textContent = diasNoAno(); desenharOrbitaTerra(); }
+$("ano").addEventListener("change", (e) => { mudarAno(+e.target.value); t = Math.min(t, diasNoAno()); atualizar(); });
 $("exag").addEventListener("input", (e) => { exag = +e.target.value; $("exagV").textContent = exag + "×"; atualizar(); });
+// avança/volta o tempo atravessando a virada do ano
+function irPara(jd) {
+  const a = new Date((jd - 2440587.5) * 864e5).getUTCFullYear();
+  if (a < 1900 || a > 2100) return;
+  if (a !== ano) mudarAno(a);
+  t = jd - jd0(); atualizar();
+}
+$("menosH").onclick = () => irPara(jd0() + t - 1 / 24);
+$("maisH").onclick = () => irPara(jd0() + t + 1 / 24);
+const LEG_NORMAL = $("legenda").textContent;
+function ligarSombras(on) {
+  sombras = on; $("vSombras").checked = on; grupoSombras.visible = on; $("legSombras").hidden = !on; $("exag").disabled = on;
+  $("legenda").textContent = on ? "Arraste para girar · roda do mouse para aproximar (a Terra está em tamanho real em relação à órbita da Lua: aproxime-se dela)." : LEG_NORMAL;
+  atualizar(); if (on) camLado();
+}
+$("vSombras").addEventListener("change", (e) => ligarSombras(e.target.checked));
+// procura o próximo (ou anterior) eclipse, de hora em hora, e vai para o instante de máximo
+function buscarEclipse(sentido) {
+  tocando = false; $("play").textContent = "▶ Reproduzir";
+  const base = jd0() + t;
+  for (let h = 24; h < 24 * 420; h++) {
+    const jd = base + sentido * h / 24;
+    const g = geometriaEclipse(A.dJ2000(jd));
+    if (!g.solar && !g.lunar) continue;
+    const solar = !!g.solar; let melhor = jd, menor = Infinity;
+    for (let k = -144; k <= 144; k++) { // ±12 h, passo de 5 min
+      const j2 = jd + k / 288, g2 = geometriaEclipse(A.dJ2000(j2));
+      const sep = solar ? (g2.solar ? g2.gama : Infinity) : (g2.lunar ? g2.afast / RT_KM : Infinity);
+      if (sep < menor) { menor = sep; melhor = j2; }
+    }
+    if (!sombras) ligarSombras(true);
+    irPara(melhor); camLado(); return;
+  }
+}
+$("eclProx").onclick = () => buscarEclipse(1);
+$("eclAnt").onclick = () => buscarEclipse(-1);
 for (const [id, obj] of [["vPlano", [planoEcl]], ["vOrbLua", [orbLua]], ["vNodos", [linNodos, rNA, rND]]])
   $(id).addEventListener("change", (e) => obj.forEach(o => o.visible = e.target.checked));
 $("vGirar").addEventListener("change", atualizar);
 function camGeral() { seguir = false; controls.target.set(0,0,0); camera.position.set(UA*0.9, UA*0.8, UA*1.5); }
 $("camGeral").onclick = camGeral;
 $("camTopo").onclick = () => { seguir = false; controls.target.set(0,0,0); camera.position.set(0.01, UA*2.3, 0.01); };
-$("camTerra").onclick = () => { seguir = true; controls.target.copy(terra.position); camera.position.copy(terra.position).add(new THREE.Vector3(3.5, 2.4, 5.5)); };
+$("camTerra").onclick = () => { seguir = true; alvoDesl.set(0, 0, 0); controls.target.copy(terra.position); camera.position.copy(terra.position).add(new THREE.Vector3(3.5, 2.4, 5.5)); };
+// de lado para a linha Sol–Terra, um pouco acima da eclíptica: mostra a sombra passando acima ou abaixo
+function camLado() {
+  seguir = true; const pT = terra.position;
+  const paraSol = pT.clone().negate().normalize(), lado = new THREE.Vector3().crossVectors(paraSol, EIXO_Y).normalize();
+  // no modo de sombras (Terra pequena), mira entre a Terra e a Lua e chega mais perto
+  if (sombras) alvoDesl.copy(lua.position).sub(pT).multiplyScalar(0.5); else alvoDesl.set(0, 0, 0);
+  const alvo = pT.clone().add(alvoDesl);
+  controls.target.copy(alvo); camera.position.copy(alvo).addScaledVector(lado, sombras ? 2.1 : 4.6).add(new THREE.Vector3(0, sombras ? 0.1 : 0.45, 0));
+}
+$("camLado").onclick = camLado;
 
 function redimensionar() { const w = cena.clientWidth, h = cena.clientHeight; renderer.setSize(w, h); rot.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix(); }
 addEventListener("resize", redimensionar);
@@ -256,16 +418,19 @@ function quadro(agora) {
   controls.update(); renderer.render(scene, camera); rot.render(scene, camera);
   requestAnimationFrame(quadro);
 }
-if (CFG.ano) { ano = CFG.ano; $("ano").value = ano; }
-redimensionar(); camGeral(); desenharOrbitaTerra();
-// atalhos pela URL, ex.: modelo1.html#dia=172&camera=terra
-{ const h = new URLSearchParams(location.hash.slice(1));
-  if (h.has("dia")) t = +h.get("dia");
-  if (h.has("exagero")) { exag = +h.get("exagero"); $("exag").value = exag; $("exagV").textContent = exag + "×"; } }
+redimensionar(); camGeral(); mudarAno(CFG.ano || 2026);
+// atalhos pela URL, ex.: modelo1.html#dia=172&camera=terra  ·  modelo1.html#ano=2026&sombras=1&eclipse=1
+const H = new URLSearchParams(location.hash.slice(1));
+if (H.has("ano")) mudarAno(+H.get("ano"));
+if (H.has("dia")) t = +H.get("dia");
+if (H.has("exagero")) { exag = +H.get("exagero"); $("exag").value = exag; $("exagV").textContent = exag + "×"; }
 atualizar();
-if (new URLSearchParams(location.hash.slice(1)).get("camera") === "terra") $("camTerra").onclick();
+if (H.get("sombras") === "1") ligarSombras(true);
+if (H.get("eclipse") === "1") buscarEclipse(1);
+if (H.get("camera") === "terra") $("camTerra").onclick();
+if (H.get("camera") === "lado") camLado();
 requestAnimationFrame(quadro);
-window.__modelo = { set t(v) { t = v; atualizar(); }, camTerra: () => $("camTerra").onclick() };
+window.__modelo = { set t(v) { t = v; atualizar(); }, get t() { return t; }, camTerra: () => $("camTerra").onclick(), camLado, buscarEclipse, ligarSombras };
 </script>
 </body>
 </html>
